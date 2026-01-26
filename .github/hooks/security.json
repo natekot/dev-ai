@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "commands": {
+          "bash": ".github/hooks/scripts/validate-command.sh",
+          "powershell": ".github/hooks/scripts/validate-command.ps1"
+        },
+        "timeout": 30000,
+        "description": "Validate commands before execution"
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "commands": {
+          "bash": ".github/hooks/scripts/audit-log.sh"
+        },
+        "timeout": 5000,
+        "description": "Log tool executions for audit trail"
+      }
+    ],
+    "sessionStart": [
+      {
+        "type": "command",
+        "commands": {
+          "bash": "echo \"[$(date -Iseconds)] Session started\" >> .github/hooks/audit.log"
+        },
+        "timeout": 5000,
+        "description": "Log session start"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "commands": {
+          "bash": "echo \"[$(date -Iseconds)] Session ended\" >> .github/hooks/audit.log"
+        },
+        "timeout": 5000,
+        "description": "Log session end"
+      }
+    ]
+  }
+}
