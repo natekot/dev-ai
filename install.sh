@@ -30,6 +30,10 @@ FORCE=false
 DRY_RUN=false
 VERBOSE=false
 
+# Tool selection (empty = not specified, will default to both)
+INSTALL_CLAUDE=""
+INSTALL_COPILOT=""
+
 # Version tracking
 VERSION_FILE="$SCRIPT_DIR/VERSION"
 CURRENT_VERSION=$(cat "$VERSION_FILE" 2>/dev/null || echo "unknown")
@@ -111,6 +115,14 @@ parse_args() {
                 VERBOSE=true
                 shift
                 ;;
+            --claude)
+                INSTALL_CLAUDE=true
+                shift
+                ;;
+            --copilot)
+                INSTALL_COPILOT=true
+                shift
+                ;;
             --help|-h)
                 show_help
                 exit 0
@@ -126,6 +138,21 @@ parse_args() {
     # Default project path to current directory if not specified
     if [[ -z "$PROJECT_PATH" && ("$MODE" == "project" || "$MODE" == "all") ]]; then
         PROJECT_PATH="$(pwd)"
+    fi
+
+    # Handle tool selection defaults
+    # If neither --claude nor --copilot specified, install both (backward compatible)
+    if [[ -z "$INSTALL_CLAUDE" && -z "$INSTALL_COPILOT" ]]; then
+        INSTALL_CLAUDE=true
+        INSTALL_COPILOT=true
+    else
+        # If only one specified, set the other to false
+        if [[ -z "$INSTALL_CLAUDE" ]]; then
+            INSTALL_CLAUDE=false
+        fi
+        if [[ -z "$INSTALL_COPILOT" ]]; then
+            INSTALL_COPILOT=false
+        fi
     fi
 }
 
@@ -143,6 +170,11 @@ Installation Modes:
   --update            Update existing installations
   --uninstall         Remove all installed files
 
+Tool Selection (use with --project or --all):
+  --claude            Install only Claude configs (commands, hooks)
+  --copilot           Install only Copilot configs (prompts)
+                      (default: install both if neither specified)
+
 Options:
   --force, -f         Overwrite existing files (default: skip)
   --dry-run, -n       Preview changes without making them
@@ -151,7 +183,9 @@ Options:
 
 Examples:
   ./install.sh --user                    # Install global configs
-  ./install.sh --project .               # Install to current repo
+  ./install.sh --project .               # Install to current repo (both tools)
+  ./install.sh --project . --claude      # Install only Claude configs
+  ./install.sh --project . --copilot     # Install only Copilot configs
   ./install.sh --all ~/my-project        # Install both to specified project
   ./install.sh --check                   # Check for updates
   ./install.sh --update --force          # Force update all installations
@@ -353,40 +387,53 @@ install_project() {
     local github_prompts_dir="$target/.github/prompts/global"
     local claude_hooks_dir="$target/.claude/hooks"
 
-    # Create directories
+    # Create directories based on what's being installed
     if ! $DRY_RUN; then
-        mkdir -p "$claude_commands_dir"
-        mkdir -p "$github_prompts_dir"
-        mkdir -p "$claude_hooks_dir"
+        if [[ "$INSTALL_CLAUDE" == "true" ]]; then
+            mkdir -p "$claude_commands_dir"
+            mkdir -p "$claude_hooks_dir"
+        fi
+        if [[ "$INSTALL_COPILOT" == "true" ]]; then
+            mkdir -p "$github_prompts_dir"
+        fi
     fi
 
-    # Install Claude commands to global/ subdirectory
-    info "Installing Claude commands to .claude/commands/global/"
-    copy_directory "$SCRIPT_DIR/commands" "$claude_commands_dir" ".claude/commands/global"
+    # Install Claude configs (commands + hooks)
+    if [[ "$INSTALL_CLAUDE" == "true" ]]; then
+        info "Installing Claude commands to .claude/commands/global/"
+        copy_directory "$SCRIPT_DIR/commands" "$claude_commands_dir" ".claude/commands/global"
 
-    # Install Copilot prompts to global/ subdirectory
-    info "Installing Copilot prompts to .github/prompts/global/"
-    copy_directory "$SCRIPT_DIR/prompts" "$github_prompts_dir" ".github/prompts/global"
+        info "Installing hook scripts to .claude/hooks/"
+        copy_file "$SCRIPT_DIR/hooks/validate-command.sh" "$claude_hooks_dir/validate-command.sh" ".claude/hooks/validate-command.sh"
+        copy_file "$SCRIPT_DIR/hooks/format-file.sh" "$claude_hooks_dir/format-file.sh" ".claude/hooks/format-file.sh"
+        copy_file "$SCRIPT_DIR/hooks/audit-log.sh" "$claude_hooks_dir/audit-log.sh" ".claude/hooks/audit-log.sh"
 
-    # Install hook scripts
-    info "Installing hook scripts to .claude/hooks/"
-    copy_file "$SCRIPT_DIR/hooks/validate-command.sh" "$claude_hooks_dir/validate-command.sh" ".claude/hooks/validate-command.sh"
-    copy_file "$SCRIPT_DIR/hooks/format-file.sh" "$claude_hooks_dir/format-file.sh" ".claude/hooks/format-file.sh"
-    copy_file "$SCRIPT_DIR/hooks/audit-log.sh" "$claude_hooks_dir/audit-log.sh" ".claude/hooks/audit-log.sh"
-
-    # Make hooks executable
-    if ! $DRY_RUN; then
-        chmod +x "$claude_hooks_dir"/*.sh 2>/dev/null || true
+        # Make hooks executable
+        if ! $DRY_RUN; then
+            chmod +x "$claude_hooks_dir"/*.sh 2>/dev/null || true
+        fi
     fi
 
-    # Track version
-    track_version "$target/.claude"
+    # Install Copilot configs (prompts)
+    if [[ "$INSTALL_COPILOT" == "true" ]]; then
+        info "Installing Copilot prompts to .github/prompts/global/"
+        copy_directory "$SCRIPT_DIR/prompts" "$github_prompts_dir" ".github/prompts/global"
+    fi
+
+    # Track version (only if Claude configs installed, as version marker is in .claude/)
+    if [[ "$INSTALL_CLAUDE" == "true" ]]; then
+        track_version "$target/.claude"
+    fi
 
     success "Project-level installation complete"
     echo ""
     info "Usage after installation:"
-    echo "  Claude commands: /project:global/review, /project:global/test, etc."
-    echo "  Copilot prompts: /global/review, /global/test, etc."
+    if [[ "$INSTALL_CLAUDE" == "true" ]]; then
+        echo "  Claude commands: /project:global/review, /project:global/test, etc."
+    fi
+    if [[ "$INSTALL_COPILOT" == "true" ]]; then
+        echo "  Copilot prompts: /global/review, /global/test, etc."
+    fi
 }
 
 #######################################
@@ -492,22 +539,36 @@ uninstall() {
     fi
 
     # Uninstall project-level from current directory
-    if [[ -f ".claude/.dev-ai-version" ]]; then
+    if [[ -f ".claude/.dev-ai-version" ]] || [[ -d ".github/prompts/global" ]]; then
         info "Removing project-level installation from current directory..."
-        if $DRY_RUN; then
-            dry_run_msg "Remove .claude/commands/global/"
-            dry_run_msg "Remove .github/prompts/global/"
-            dry_run_msg "Remove .claude/hooks/ (shared hook scripts)"
-            dry_run_msg "Remove .claude/.dev-ai-version"
-        else
-            rm -rf ".claude/commands/global"
-            rm -rf ".github/prompts/global"
-            rm -f ".claude/hooks/validate-command.sh"
-            rm -f ".claude/hooks/format-file.sh"
-            rm -f ".claude/hooks/audit-log.sh"
-            rm -f ".claude/.dev-ai-version"
+
+        # Uninstall Claude configs if requested (or both)
+        if [[ "$INSTALL_CLAUDE" == "true" ]]; then
+            if $DRY_RUN; then
+                dry_run_msg "Remove .claude/commands/global/"
+                dry_run_msg "Remove .claude/hooks/validate-command.sh"
+                dry_run_msg "Remove .claude/hooks/format-file.sh"
+                dry_run_msg "Remove .claude/hooks/audit-log.sh"
+                dry_run_msg "Remove .claude/.dev-ai-version"
+            else
+                rm -rf ".claude/commands/global"
+                rm -f ".claude/hooks/validate-command.sh"
+                rm -f ".claude/hooks/format-file.sh"
+                rm -f ".claude/hooks/audit-log.sh"
+                rm -f ".claude/.dev-ai-version"
+            fi
+            success "Claude configs uninstalled"
         fi
-        success "Project-level uninstalled"
+
+        # Uninstall Copilot configs if requested (or both)
+        if [[ "$INSTALL_COPILOT" == "true" ]]; then
+            if $DRY_RUN; then
+                dry_run_msg "Remove .github/prompts/global/"
+            else
+                rm -rf ".github/prompts/global"
+            fi
+            success "Copilot configs uninstalled"
+        fi
     fi
 }
 

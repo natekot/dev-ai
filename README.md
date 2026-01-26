@@ -14,22 +14,30 @@ cd dev-ai
 # Install global configs to ~/.claude/ (applies to all projects)
 ./install.sh --user
 
-# Install commands/prompts to a specific project
+# Install commands/prompts to a specific project (both Claude and Copilot)
 ./install.sh --project /path/to/your/project
 
-# Or install both at once
+# Or install only Claude configs (commands + hooks)
+./install.sh --project /path/to/your/project --claude
+
+# Or install only Copilot configs (prompts)
+./install.sh --project /path/to/your/project --copilot
+
+# Install both at once (user-level + project-level)
 ./install.sh --all /path/to/your/project
 ```
 
 ### What Gets Installed
 
-| Mode | What | Where |
-|------|------|-------|
-| `--user` | Global CLAUDE.md | `~/.claude/CLAUDE.md` |
-| `--user` | Global hooks & settings | `~/.claude/settings.json`, `~/.claude/hooks/` |
-| `--project` | Claude commands | `.claude/commands/global/` |
-| `--project` | Copilot prompts | `.github/prompts/global/` |
-| `--project` | Hook scripts | `.claude/hooks/` |
+| Mode | What | Where | Tool Flag |
+|------|------|-------|-----------|
+| `--user` | Global CLAUDE.md | `~/.claude/CLAUDE.md` | — |
+| `--user` | Global hooks & settings | `~/.claude/settings.json`, `~/.claude/hooks/` | — |
+| `--project` | Claude commands | `.claude/commands/global/` | `--claude` |
+| `--project` | Hook scripts | `.claude/hooks/` | `--claude` |
+| `--project` | Copilot prompts | `.github/prompts/global/` | `--copilot` |
+
+> **Selective installation:** Use `--claude` or `--copilot` with `--project` to install only specific configs. Without these flags, both are installed (default).
 
 ### Usage After Installation
 
