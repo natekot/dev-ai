@@ -1,12 +1,11 @@
 #!/bin/bash
-# install.sh - Global AI Config Repository Installation Script
+# install.sh - dev-ai Installation Script (Copilot-only)
 #
-# Installs dev-ai configs to user-level (~/.claude/) and/or project-level directories.
+# Installs Copilot prompts and instructions to project-level directories.
 #
 # Usage:
-#   ./install.sh --user              # Install to ~/.claude/
-#   ./install.sh --project [path]    # Install commands/prompts to target repo
-#   ./install.sh --all [path]        # Both user + project
+#   ./install.sh [path]              # Install prompts + instructions (default: current dir)
+#   ./install.sh --instructions [path] # Install only instructions
 #   ./install.sh --check             # Check for available updates
 #   ./install.sh --update            # Update existing installations
 #   ./install.sh --uninstall         # Remove installed files
@@ -29,10 +28,6 @@ PROJECT_PATH=""
 FORCE=false
 DRY_RUN=false
 VERBOSE=false
-
-# Tool selection (empty = not specified, will default to both)
-INSTALL_CLAUDE=""
-INSTALL_COPILOT=""
 
 # Version tracking
 VERSION_FILE="$SCRIPT_DIR/VERSION"
@@ -71,26 +66,6 @@ dry_run_msg() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --user)
-                MODE="user"
-                shift
-                ;;
-            --project)
-                MODE="project"
-                if [[ -n "$2" && ! "$2" =~ ^-- ]]; then
-                    PROJECT_PATH="$2"
-                    shift
-                fi
-                shift
-                ;;
-            --all)
-                MODE="all"
-                if [[ -n "$2" && ! "$2" =~ ^-- ]]; then
-                    PROJECT_PATH="$2"
-                    shift
-                fi
-                shift
-                ;;
             --check)
                 MODE="check"
                 shift
@@ -101,6 +76,14 @@ parse_args() {
                 ;;
             --uninstall)
                 MODE="uninstall"
+                shift
+                ;;
+            --instructions)
+                MODE="instructions"
+                if [[ -n "$2" && ! "$2" =~ ^-- ]]; then
+                    PROJECT_PATH="$2"
+                    shift
+                fi
                 shift
                 ;;
             --force|-f)
@@ -115,44 +98,31 @@ parse_args() {
                 VERBOSE=true
                 shift
                 ;;
-            --claude)
-                INSTALL_CLAUDE=true
-                shift
-                ;;
-            --copilot)
-                INSTALL_COPILOT=true
-                shift
-                ;;
             --help|-h)
                 show_help
                 exit 0
                 ;;
-            *)
+            -*)
                 error "Unknown option: $1"
                 show_help
                 exit 1
                 ;;
+            *)
+                # Positional argument: treat as project path
+                PROJECT_PATH="$1"
+                shift
+                ;;
         esac
     done
 
-    # Default project path to current directory if not specified
-    if [[ -z "$PROJECT_PATH" && ("$MODE" == "project" || "$MODE" == "all") ]]; then
-        PROJECT_PATH="$(pwd)"
+    # Default to install mode if no mode specified
+    if [[ -z "$MODE" ]]; then
+        MODE="install"
     fi
 
-    # Handle tool selection defaults
-    # If neither --claude nor --copilot specified, install both (backward compatible)
-    if [[ -z "$INSTALL_CLAUDE" && -z "$INSTALL_COPILOT" ]]; then
-        INSTALL_CLAUDE=true
-        INSTALL_COPILOT=true
-    else
-        # If only one specified, set the other to false
-        if [[ -z "$INSTALL_CLAUDE" ]]; then
-            INSTALL_CLAUDE=false
-        fi
-        if [[ -z "$INSTALL_COPILOT" ]]; then
-            INSTALL_COPILOT=false
-        fi
+    # Default project path to current directory for install/instructions modes
+    if [[ -z "$PROJECT_PATH" && ( "$MODE" == "install" || "$MODE" == "instructions" ) ]]; then
+        PROJECT_PATH="$(pwd)"
     fi
 }
 
@@ -160,57 +130,35 @@ show_help() {
     cat << EOF
 dev-ai Installation Script v${CURRENT_VERSION}
 
-Usage: ./install.sh [OPTIONS]
+Installs GitHub Copilot prompts and instructions to your project.
 
-Installation Modes:
-  --user              Install global configs to ~/.claude/
-  --project [PATH]    Install commands/prompts to target repo (default: current dir)
-  --all [PATH]        Install both user-level and project-level configs
-  --check             Check if updates are available
-  --update            Update existing installations
-  --uninstall         Remove all installed files
+Usage: ./install.sh [PATH] [OPTIONS]
 
-Tool Selection (use with --project or --all):
-  --claude            Install only Claude configs (commands, hooks)
-  --copilot           Install only Copilot configs (prompts)
-                      (default: install both if neither specified)
+Arguments:
+  PATH                  Target directory (default: current dir)
 
 Options:
-  --force, -f         Overwrite existing files (default: skip)
-  --dry-run, -n       Preview changes without making them
-  --verbose, -v       Show detailed output
-  --help, -h          Show this help message
+  --instructions        Install only instructions (no prompts)
+  --check               Check if updates are available
+  --update              Update existing installations
+  --uninstall           Remove installed files
+  --force, -f           Overwrite existing files (default: skip)
+  --dry-run, -n         Preview changes without making them
+  --verbose, -v         Show detailed output
+  --help, -h            Show this help message
 
 Examples:
-  ./install.sh --user                    # Install global configs
-  ./install.sh --project .               # Install to current repo (both tools)
-  ./install.sh --project . --claude      # Install only Claude configs
-  ./install.sh --project . --copilot     # Install only Copilot configs
-  ./install.sh --all ~/my-project        # Install both to specified project
-  ./install.sh --check                   # Check for updates
-  ./install.sh --update --force          # Force update all installations
+  ./install.sh                    # Install to current directory
+  ./install.sh ~/my-project       # Install to specified project
+  ./install.sh --instructions     # Install only instructions
+  ./install.sh --dry-run          # Preview what would be installed
+  ./install.sh --check            # Check for updates
+  ./install.sh --update --force   # Force update all installations
 
 After Installation:
-  - Claude commands: /project:global/review, /project:global/test, etc.
-  - Copilot prompts: /global/review, /global/test, etc.
+  Copilot prompts: @workspace /global/review, /global/test, etc.
+  Instructions apply automatically based on file type (*.c, *.py, *.sh, etc.)
 EOF
-}
-
-#######################################
-# Check dependencies
-#######################################
-
-check_dependencies() {
-    local missing=()
-
-    if ! command -v jq &> /dev/null; then
-        missing+=("jq")
-    fi
-
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        warn "Optional dependency not found: ${missing[*]}"
-        warn "JSON merging will use fallback method (may overwrite existing settings)"
-    fi
 }
 
 #######################################
@@ -257,61 +205,6 @@ copy_directory() {
 }
 
 #######################################
-# Merge settings.json using jq
-#######################################
-
-merge_settings_json() {
-    local src="$1"
-    local dest="$2"
-    local desc="$3"
-
-    if [[ ! -f "$dest" ]]; then
-        copy_file "$src" "$dest" "$desc"
-        return 0
-    fi
-
-    if ! command -v jq &> /dev/null; then
-        if $FORCE; then
-            copy_file "$src" "$dest" "$desc"
-        else
-            warn "Cannot merge $desc without jq (use --force to overwrite)"
-        fi
-        return 0
-    fi
-
-    if $DRY_RUN; then
-        dry_run_msg "Merge hooks from $src into $dest"
-        return 0
-    fi
-
-    # Create a merged version that combines hooks arrays
-    local merged
-    merged=$(jq -s '
-        def merge_hooks:
-            if .[0] == null then .[1]
-            elif .[1] == null then .[0]
-            else .[0] + .[1] | unique
-            end;
-
-        .[0] as $existing | .[1] as $new |
-        $existing * {
-            hooks: {
-                PreToolUse: ([$existing.hooks.PreToolUse, $new.hooks.PreToolUse] | merge_hooks),
-                PostToolUse: ([$existing.hooks.PostToolUse, $new.hooks.PostToolUse] | merge_hooks)
-            }
-        }
-    ' "$dest" "$src" 2>/dev/null)
-
-    if [[ -n "$merged" ]]; then
-        echo "$merged" > "$dest"
-        success "Merged $desc (combined hooks)"
-    else
-        error "Failed to merge $desc"
-        return 1
-    fi
-}
-
-#######################################
 # Version tracking
 #######################################
 
@@ -333,6 +226,7 @@ track_version() {
         return 0
     fi
 
+    mkdir -p "$target_dir"
     echo "$CURRENT_VERSION" > "$marker"
 }
 
@@ -340,37 +234,42 @@ track_version() {
 # Installation functions
 #######################################
 
-install_user_level() {
-    info "Installing user-level configs to ~/.claude/"
+install_instructions() {
+    local target="$PROJECT_PATH"
 
-    local user_claude_dir="$HOME/.claude"
-    local user_hooks_dir="$user_claude_dir/hooks"
-
-    # Create directories
-    if ! $DRY_RUN; then
-        mkdir -p "$user_claude_dir"
-        mkdir -p "$user_hooks_dir"
+    if [[ ! -d "$target" ]]; then
+        error "Project directory not found: $target"
+        exit 1
     fi
 
-    # Install CLAUDE.md
-    copy_file "$SCRIPT_DIR/global/CLAUDE.md" "$user_claude_dir/CLAUDE.md" "CLAUDE.md"
+    info "Installing Copilot instructions to $target"
 
-    # Merge or install settings.json
-    merge_settings_json "$SCRIPT_DIR/global/settings.json" "$user_claude_dir/settings.json" "settings.json"
+    local github_instructions_dir="$target/.github/instructions"
+    local github_copilot_instructions="$target/.github/copilot-instructions.md"
 
-    # Install hook scripts
-    copy_file "$SCRIPT_DIR/hooks/validate-command.sh" "$user_hooks_dir/validate-command.sh" "hooks/validate-command.sh"
-    copy_file "$SCRIPT_DIR/hooks/audit-log.sh" "$user_hooks_dir/audit-log.sh" "hooks/audit-log.sh"
-
-    # Make hooks executable
+    # Create directory
     if ! $DRY_RUN; then
-        chmod +x "$user_hooks_dir"/*.sh 2>/dev/null || true
+        mkdir -p "$github_instructions_dir"
     fi
+
+    # Install global copilot-instructions.md
+    copy_file "$SCRIPT_DIR/instructions/copilot-instructions.md" "$github_copilot_instructions" ".github/copilot-instructions.md"
+
+    # Install language-specific instructions
+    info "Installing instructions to .github/instructions/"
+    for file in "$SCRIPT_DIR/instructions"/*.instructions.md; do
+        if [[ -f "$file" ]]; then
+            local filename=$(basename "$file")
+            copy_file "$file" "$github_instructions_dir/$filename" ".github/instructions/$filename"
+        fi
+    done
 
     # Track version
-    track_version "$user_claude_dir"
+    track_version "$target/.github/instructions"
 
-    success "User-level installation complete"
+    success "Instructions installation complete"
+    echo ""
+    info "Instructions apply automatically based on file type (*.c, *.py, *.sh, etc.)"
 }
 
 install_project() {
@@ -381,59 +280,28 @@ install_project() {
         exit 1
     fi
 
-    info "Installing project-level configs to $target"
+    info "Installing Copilot prompts and instructions to $target"
 
-    local claude_commands_dir="$target/.claude/commands/global"
     local github_prompts_dir="$target/.github/prompts/global"
-    local claude_hooks_dir="$target/.claude/hooks"
 
-    # Create directories based on what's being installed
+    # Create directory
     if ! $DRY_RUN; then
-        if [[ "$INSTALL_CLAUDE" == "true" ]]; then
-            mkdir -p "$claude_commands_dir"
-            mkdir -p "$claude_hooks_dir"
-        fi
-        if [[ "$INSTALL_COPILOT" == "true" ]]; then
-            mkdir -p "$github_prompts_dir"
-        fi
+        mkdir -p "$github_prompts_dir"
     fi
 
-    # Install Claude configs (commands + hooks)
-    if [[ "$INSTALL_CLAUDE" == "true" ]]; then
-        info "Installing Claude commands to .claude/commands/global/"
-        copy_directory "$SCRIPT_DIR/commands" "$claude_commands_dir" ".claude/commands/global"
+    # Install Copilot prompts
+    info "Installing prompts to .github/prompts/global/"
+    copy_directory "$SCRIPT_DIR/prompts" "$github_prompts_dir" ".github/prompts/global"
 
-        info "Installing hook scripts to .claude/hooks/"
-        copy_file "$SCRIPT_DIR/hooks/validate-command.sh" "$claude_hooks_dir/validate-command.sh" ".claude/hooks/validate-command.sh"
-        copy_file "$SCRIPT_DIR/hooks/format-file.sh" "$claude_hooks_dir/format-file.sh" ".claude/hooks/format-file.sh"
-        copy_file "$SCRIPT_DIR/hooks/audit-log.sh" "$claude_hooks_dir/audit-log.sh" ".claude/hooks/audit-log.sh"
+    # Track version for prompts
+    track_version "$target/.github/prompts/global"
 
-        # Make hooks executable
-        if ! $DRY_RUN; then
-            chmod +x "$claude_hooks_dir"/*.sh 2>/dev/null || true
-        fi
-    fi
+    # Install instructions
+    install_instructions
 
-    # Install Copilot configs (prompts)
-    if [[ "$INSTALL_COPILOT" == "true" ]]; then
-        info "Installing Copilot prompts to .github/prompts/global/"
-        copy_directory "$SCRIPT_DIR/prompts" "$github_prompts_dir" ".github/prompts/global"
-    fi
-
-    # Track version (only if Claude configs installed, as version marker is in .claude/)
-    if [[ "$INSTALL_CLAUDE" == "true" ]]; then
-        track_version "$target/.claude"
-    fi
-
-    success "Project-level installation complete"
+    success "Installation complete"
     echo ""
-    info "Usage after installation:"
-    if [[ "$INSTALL_CLAUDE" == "true" ]]; then
-        echo "  Claude commands: /project:global/review, /project:global/test, etc."
-    fi
-    if [[ "$INSTALL_COPILOT" == "true" ]]; then
-        echo "  Copilot prompts: /global/review, /global/test, etc."
-    fi
+    info "Usage: In VS Code Copilot Chat, use /global/review, /global/test, etc."
 }
 
 #######################################
@@ -445,32 +313,32 @@ check_updates() {
 
     local updates_available=false
 
-    # Check user-level installation
-    local user_marker="$HOME/.claude/.dev-ai-version"
-    local user_version=$(get_installed_version "$user_marker")
-    if [[ -n "$user_version" ]]; then
-        if [[ "$user_version" != "$CURRENT_VERSION" ]]; then
-            warn "User-level: installed $user_version, available $CURRENT_VERSION"
+    # Check current directory for prompts installation
+    local prompts_marker=".github/prompts/global/.dev-ai-version"
+    local prompts_version=$(get_installed_version "$prompts_marker")
+    if [[ -n "$prompts_version" ]]; then
+        if [[ "$prompts_version" != "$CURRENT_VERSION" ]]; then
+            warn "Prompts (./): installed $prompts_version, available $CURRENT_VERSION"
             updates_available=true
         else
-            success "User-level: up to date ($user_version)"
+            success "Prompts (./): up to date ($prompts_version)"
         fi
     else
-        info "User-level: not installed"
+        info "Prompts (./): not installed"
     fi
 
-    # Check current directory for project-level installation
-    local project_marker=".claude/.dev-ai-version"
-    local project_version=$(get_installed_version "$project_marker")
-    if [[ -n "$project_version" ]]; then
-        if [[ "$project_version" != "$CURRENT_VERSION" ]]; then
-            warn "Project-level (./): installed $project_version, available $CURRENT_VERSION"
+    # Check current directory for instructions installation
+    local instructions_marker=".github/instructions/.dev-ai-version"
+    local instructions_version=$(get_installed_version "$instructions_marker")
+    if [[ -n "$instructions_version" ]]; then
+        if [[ "$instructions_version" != "$CURRENT_VERSION" ]]; then
+            warn "Instructions (./): installed $instructions_version, available $CURRENT_VERSION"
             updates_available=true
         else
-            success "Project-level (./): up to date ($project_version)"
+            success "Instructions (./): up to date ($instructions_version)"
         fi
     else
-        info "Project-level (./): not installed"
+        info "Instructions (./): not installed"
     fi
 
     if $updates_available; then
@@ -487,27 +355,39 @@ check_updates() {
 update_installations() {
     info "Updating existing installations"
 
-    # Update user-level if installed
-    local user_marker="$HOME/.claude/.dev-ai-version"
-    if [[ -f "$user_marker" ]]; then
-        local user_version=$(get_installed_version "$user_marker")
-        if [[ "$user_version" != "$CURRENT_VERSION" ]] || $FORCE; then
-            install_user_level
+    PROJECT_PATH="$(pwd)"
+    local updated=false
+
+    # Update prompts if installed in current directory
+    local prompts_marker=".github/prompts/global/.dev-ai-version"
+    if [[ -f "$prompts_marker" ]]; then
+        local prompts_version=$(get_installed_version "$prompts_marker")
+        if [[ "$prompts_version" != "$CURRENT_VERSION" ]] || $FORCE; then
+            info "Updating prompts..."
+            local github_prompts_dir="$PROJECT_PATH/.github/prompts/global"
+            copy_directory "$SCRIPT_DIR/prompts" "$github_prompts_dir" ".github/prompts/global"
+            track_version "$PROJECT_PATH/.github/prompts/global"
+            updated=true
         else
-            success "User-level already up to date"
+            success "Prompts already up to date"
         fi
     fi
 
-    # Update project-level if installed in current directory
-    local project_marker=".claude/.dev-ai-version"
-    if [[ -f "$project_marker" ]]; then
-        local project_version=$(get_installed_version "$project_marker")
-        if [[ "$project_version" != "$CURRENT_VERSION" ]] || $FORCE; then
-            PROJECT_PATH="$(pwd)"
-            install_project
+    # Update instructions if installed in current directory
+    local instructions_marker=".github/instructions/.dev-ai-version"
+    if [[ -f "$instructions_marker" ]]; then
+        local instructions_version=$(get_installed_version "$instructions_marker")
+        if [[ "$instructions_version" != "$CURRENT_VERSION" ]] || $FORCE; then
+            info "Updating instructions..."
+            install_instructions
+            updated=true
         else
-            success "Project-level already up to date"
+            success "Instructions already up to date"
         fi
+    fi
+
+    if ! $updated && [[ ! -f "$prompts_marker" && ! -f "$instructions_marker" ]]; then
+        info "No installation found in current directory"
     fi
 }
 
@@ -518,57 +398,38 @@ update_installations() {
 uninstall() {
     info "Uninstalling dev-ai configs"
 
-    # Uninstall user-level
-    local user_claude_dir="$HOME/.claude"
-    if [[ -f "$user_claude_dir/.dev-ai-version" ]]; then
-        info "Removing user-level installation..."
+    local found=false
+
+    # Uninstall prompts from current directory
+    if [[ -f ".github/prompts/global/.dev-ai-version" ]] || [[ -d ".github/prompts/global" ]]; then
+        info "Removing prompts from current directory..."
+
         if $DRY_RUN; then
-            dry_run_msg "Remove $user_claude_dir/CLAUDE.md"
-            dry_run_msg "Remove $user_claude_dir/hooks/validate-command.sh"
-            dry_run_msg "Remove $user_claude_dir/hooks/audit-log.sh"
-            dry_run_msg "Remove $user_claude_dir/.dev-ai-version"
+            dry_run_msg "Remove .github/prompts/global/"
         else
-            rm -f "$user_claude_dir/CLAUDE.md"
-            rm -f "$user_claude_dir/hooks/validate-command.sh"
-            rm -f "$user_claude_dir/hooks/audit-log.sh"
-            rm -f "$user_claude_dir/.dev-ai-version"
-            # Note: Not removing settings.json as it may have user customizations
-            warn "Note: ~/.claude/settings.json preserved (may contain customizations)"
+            rm -rf ".github/prompts/global"
         fi
-        success "User-level uninstalled"
+        success "Copilot prompts uninstalled"
+        found=true
     fi
 
-    # Uninstall project-level from current directory
-    if [[ -f ".claude/.dev-ai-version" ]] || [[ -d ".github/prompts/global" ]]; then
-        info "Removing project-level installation from current directory..."
+    # Uninstall instructions from current directory
+    if [[ -f ".github/instructions/.dev-ai-version" ]] || [[ -d ".github/instructions" ]]; then
+        info "Removing instructions from current directory..."
 
-        # Uninstall Claude configs if requested (or both)
-        if [[ "$INSTALL_CLAUDE" == "true" ]]; then
-            if $DRY_RUN; then
-                dry_run_msg "Remove .claude/commands/global/"
-                dry_run_msg "Remove .claude/hooks/validate-command.sh"
-                dry_run_msg "Remove .claude/hooks/format-file.sh"
-                dry_run_msg "Remove .claude/hooks/audit-log.sh"
-                dry_run_msg "Remove .claude/.dev-ai-version"
-            else
-                rm -rf ".claude/commands/global"
-                rm -f ".claude/hooks/validate-command.sh"
-                rm -f ".claude/hooks/format-file.sh"
-                rm -f ".claude/hooks/audit-log.sh"
-                rm -f ".claude/.dev-ai-version"
-            fi
-            success "Claude configs uninstalled"
+        if $DRY_RUN; then
+            dry_run_msg "Remove .github/instructions/"
+            dry_run_msg "Remove .github/copilot-instructions.md"
+        else
+            rm -rf ".github/instructions"
+            rm -f ".github/copilot-instructions.md"
         fi
+        success "Copilot instructions uninstalled"
+        found=true
+    fi
 
-        # Uninstall Copilot configs if requested (or both)
-        if [[ "$INSTALL_COPILOT" == "true" ]]; then
-            if $DRY_RUN; then
-                dry_run_msg "Remove .github/prompts/global/"
-            else
-                rm -rf ".github/prompts/global"
-            fi
-            success "Copilot configs uninstalled"
-        fi
+    if ! $found; then
+        info "No installation found in current directory"
     fi
 }
 
@@ -579,14 +440,6 @@ uninstall() {
 main() {
     parse_args "$@"
 
-    if [[ -z "$MODE" ]]; then
-        error "No mode specified"
-        show_help
-        exit 1
-    fi
-
-    check_dependencies
-
     echo ""
     info "dev-ai v${CURRENT_VERSION}"
     if $DRY_RUN; then
@@ -595,16 +448,11 @@ main() {
     echo ""
 
     case $MODE in
-        user)
-            install_user_level
-            ;;
-        project)
+        install)
             install_project
             ;;
-        all)
-            install_user_level
-            echo ""
-            install_project
+        instructions)
+            install_instructions
             ;;
         check)
             check_updates

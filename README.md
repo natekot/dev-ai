@@ -1,115 +1,94 @@
-# GitHub Copilot + Claude Code Intersection Sandbox
+# dev-ai: GitHub Copilot Prompts & Instructions
 
-This project demonstrates the **shared concepts** between GitHub Copilot and Claude Code customization systems. Both tools support similar patterns for customization, just with different syntax and file locations.
+A collection of reusable GitHub Copilot prompts and language-specific instructions for common development tasks. Install once and use across all your projects.
 
-**This repository is also installable as a global config system** — install shared AI coding configs once and use them across all your projects.
-
-## Quick Start: Installation
+## Quick Start
 
 ```bash
 # Clone this repository
 git clone https://github.com/yourusername/dev-ai.git
 cd dev-ai
 
-# Install global configs to ~/.claude/ (applies to all projects)
-./install.sh --user
+# Install to your project
+./install.sh /path/to/your/project
 
-# Install commands/prompts to a specific project (both Claude and Copilot)
-./install.sh --project /path/to/your/project
-
-# Or install only Claude configs (commands + hooks)
-./install.sh --project /path/to/your/project --claude
-
-# Or install only Copilot configs (prompts)
-./install.sh --project /path/to/your/project --copilot
-
-# Install both at once (user-level + project-level)
-./install.sh --all /path/to/your/project
+# Or install to current directory
+./install.sh
 ```
 
-### What Gets Installed
+## What Gets Installed
 
-| Mode | What | Where | Tool Flag |
-|------|------|-------|-----------|
-| `--user` | Global CLAUDE.md | `~/.claude/CLAUDE.md` | — |
-| `--user` | Global hooks & settings | `~/.claude/settings.json`, `~/.claude/hooks/` | — |
-| `--project` | Claude commands | `.claude/commands/global/` | `--claude` |
-| `--project` | Hook scripts | `.claude/hooks/` | `--claude` |
-| `--project` | Copilot prompts | `.github/prompts/global/` | `--copilot` |
+### Prompts
+| File | Location | Purpose |
+|------|----------|---------|
+| `review.prompt.md` | `.github/prompts/global/` | Code review prompt |
+| `test.prompt.md` | `.github/prompts/global/` | Test generation prompt |
+| `explain.prompt.md` | `.github/prompts/global/` | Code explanation prompt |
+| `commit-and-push.prompt.md` | `.github/prompts/global/` | Commit workflow prompt |
 
-> **Selective installation:** Use `--claude` or `--copilot` with `--project` to install only specific configs. Without these flags, both are installed (default).
+### Instructions (Language-Specific)
+| File | Applies To | Purpose |
+|------|------------|---------|
+| `copilot-instructions.md` | All files | Global token efficiency guidelines |
+| `c.instructions.md` | `*.c`, `*.h` | C language + K&R style |
+| `python.instructions.md` | `*.py` | Python guidelines |
+| `bash.instructions.md` | `*.sh`, `*.bash` | Bash/Shell guidelines |
+| `testing.instructions.md` | `test_*.py`, `*_test.c`, etc. | Testing patterns |
+| `security.instructions.md` | All files | Security guidelines |
 
-### Usage After Installation
+## Usage After Installation
 
-```bash
-# Claude Code commands (from any installed project)
-/project:global/review examples/sample.py
-/project:global/test examples/sample.py
-/project:global/explain examples/sample.py
-/project:global/commit-and-push
+In VS Code Copilot Chat, invoke prompts using the `/` syntax:
 
-# GitHub Copilot prompts
-/global/review
-/global/test
+```
+/global/review examples/sample.py
+/global/test examples/sample.py
+/global/explain examples/sample.py
+/global/commit-and-push
 ```
 
-### Managing Installations
+## Managing Installations
 
 ```bash
+./install.sh --instructions       # Install only instructions (no prompts)
 ./install.sh --check              # Check for updates
 ./install.sh --update             # Update existing installations
 ./install.sh --update --force     # Force update (overwrites customizations)
 ./install.sh --uninstall          # Remove installed files
-./install.sh --dry-run --all .    # Preview what would be installed
+./install.sh --dry-run            # Preview what would be installed
 ```
-
----
-
-## Key Intersection Points
-
-| Concept | GitHub Copilot | Claude Code |
-|---------|---------------|-------------|
-| Slash commands | `.github/prompts/*.prompt.md` | `.claude/commands/*.md` |
-| Project guidance | `.github/copilot/instructions.md` | `CLAUDE.md` |
-| Agents/Skills | `agents/*.agent.md` | Agent skills in settings |
-| MCP integration | MCP server config | MCP server config |
-| Hooks | `.github/hooks/*.json` | `.claude/settings.json` hooks |
 
 ## Project Structure
 
 ```
 dev-ai/
 ├── install.sh                     # Installation script
-├── VERSION                        # Version tracking (for updates)
+├── VERSION                        # Version tracking
 ├── README.md                      # This file
-├── CLAUDE.md                      # Claude Code project guidance (local demo)
-│
-├── global/                        # User-level configs (installed to ~/.claude/)
-│   ├── CLAUDE.md                  # Global coding standards
-│   └── settings.json              # Global hooks configuration
-│
-├── commands/                      # Claude commands (installable)
-│   ├── review.md
-│   ├── test.md
-│   ├── explain.md
-│   └── commit-and-push.md
 │
 ├── prompts/                       # Copilot prompts (installable)
-│   ├── review.prompt.md
-│   ├── test.prompt.md
-│   ├── explain.prompt.md
-│   └── commit-and-push.prompt.md
+│   ├── review.prompt.md           # Code review
+│   ├── test.prompt.md             # Test generation
+│   ├── explain.prompt.md          # Code explanation
+│   └── commit-and-push.prompt.md  # Commit workflow
 │
-├── hooks/                         # Shared hook scripts (installable)
-│   ├── validate-command.sh        # Block dangerous commands
-│   ├── format-file.sh             # Auto-format on write
-│   └── audit-log.sh               # Log tool executions
+├── instructions/                  # Copilot instructions (installable)
+│   ├── copilot-instructions.md    # Global (token efficiency)
+│   ├── c.instructions.md          # C language + K&R style
+│   ├── python.instructions.md     # Python guidelines
+│   ├── bash.instructions.md       # Bash/Shell guidelines
+│   ├── testing.instructions.md    # Testing patterns
+│   └── security.instructions.md   # Security guidelines
 │
-├── examples/                      # Demo files (not installed)
+├── examples/                      # Demo files
 │   └── sample.py
 │
-└── .claude/                       # Local dev-ai project configs
-    └── commands/                  # (Used when working on dev-ai itself)
+└── .github/                       # This repo's Copilot configs
+    ├── copilot-instructions.md    # Global instructions
+    ├── instructions/              # Language-specific instructions
+    │   └── *.instructions.md
+    └── prompts/
+        └── *.prompt.md            # Local prompts
 ```
 
 ### Installation Target Structure
@@ -118,318 +97,68 @@ When you run `./install.sh --project /path/to/repo`, files are installed to:
 
 ```
 your-repo/
-├── .claude/
-│   ├── commands/
-│   │   └── global/                # Global commands (from dev-ai)
-│   │       ├── review.md
-│   │       ├── test.md
-│   │       └── ...
-│   ├── hooks/                     # Hook scripts
-│   │   ├── validate-command.sh
-│   │   └── ...
-│   └── .dev-ai-version            # Version tracking marker
-│
 └── .github/
+    ├── copilot-instructions.md    # Global instructions
+    ├── instructions/              # Language-specific instructions
+    │   ├── c.instructions.md
+    │   ├── python.instructions.md
+    │   ├── bash.instructions.md
+    │   ├── testing.instructions.md
+    │   ├── security.instructions.md
+    │   └── .dev-ai-version        # Version tracking
     └── prompts/
-        └── global/                # Global prompts (from dev-ai)
+        └── global/                # Prompts from dev-ai
             ├── review.prompt.md
-            └── ...
+            ├── test.prompt.md
+            ├── explain.prompt.md
+            ├── commit-and-push.prompt.md
+            └── .dev-ai-version    # Version tracking
 ```
 
-This **subdirectory approach** (`global/`) ensures dev-ai configs coexist with repo-specific ones without conflicts.
+The `global/` subdirectory ensures dev-ai prompts coexist with your repo-specific prompts without conflicts. Instructions apply automatically based on file patterns in their `applyTo` frontmatter.
 
-## Using This Sandbox
+## Available Prompts
 
-### With Claude Code
+### `/global/review`
+Performs a comprehensive code review checking for:
+- Code quality issues
+- Potential bugs
+- Security concerns
+- Readability and maintainability
 
-1. **Project Guidance**: Claude Code automatically reads `CLAUDE.md` for project context
-2. **Skills**: Use `/review`, `/test`, or `/explain` followed by a file path
-3. **Example**:
-   ```
-   /review examples/sample.py
-   ```
+### `/global/test`
+Generates tests for your code:
+- Uses pytest as the testing framework
+- Includes happy path and edge case tests
+- Creates descriptive test names
+- Mocks external dependencies
 
-### With GitHub Copilot
+### `/global/explain`
+Explains code with:
+- High-level overview
+- Step-by-step breakdown of complex logic
+- Non-obvious patterns and decisions
+- Potential gotchas and edge cases
 
-1. **Project Instructions**: Copilot reads `.github/copilot/instructions.md` automatically
-2. **Prompts**: Invoke prompts in Copilot Chat using `/prompt-name` syntax
-3. **Example**:
-   ```
-   /review examples/sample.py
-   ```
+### `/global/commit-and-push`
+Guides you through committing changes:
+- Reviews staged changes
+- Suggests commit message
+- Handles the commit workflow
 
-> **Note on `@` vs `/` syntax:**
-> - `/command` invokes prompt files (e.g., `/review` runs `.github/prompts/review.prompt.md`)
-> - `@participant` provides context (e.g., `@workspace` gives workspace context, `@terminal` gives terminal output)
+## Copilot Chat Participants
 
-### Copilot Chat Participants (`@` syntax)
-
-Chat participants are domain experts that provide specialized context. Type `@` in Copilot Chat to see all available participants.
-
-#### Built-in Participants
+Type `@` in Copilot Chat to access specialized participants:
 
 | Participant | Purpose | Example |
 |-------------|---------|---------|
-| `@workspace` | Codebase context—project structure, architecture, implementation details | `@workspace how is authentication implemented?` |
-| `@terminal` | Terminal/shell expertise—commands, buffer contents, CLI help | `@terminal list the 5 largest files here` |
-| `@vscode` | VS Code knowledge—settings, keybindings, extensions, APIs | `@vscode how to enable word wrapping?` |
-| `@github` | GitHub features—PRs, issues, repos, plus web search via `#web` | `@github what are my open PRs?` |
-
-#### `@workspace` (Most Common)
-
-Provides context about your entire codebase:
-```
-@workspace where are API routes defined?
-@workspace explain the project structure
-@workspace how does error handling work?
-```
-
-#### `@terminal`
-
-Knows about shell commands and terminal contents:
-```
-@terminal how do I find all .py files?
-@terminal /explain    # explains last command
-@terminal what does this error mean?
-```
-
-#### `@vscode`
-
-Expert on VS Code itself:
-```
-@vscode what's the shortcut for command palette?
-@vscode how do I create a custom snippet?
-@vscode configure auto-save on focus change
-```
-
-#### `@github`
-
-Accesses GitHub data and web search:
-```
-@github show recent merged PRs from @username
-@github what issues are assigned to me?
-@github #web what's the latest version of Node.js?
-```
-
-#### IDE Variations
-
-| Participant | VS Code | Visual Studio | JetBrains |
-|-------------|---------|---------------|-----------|
-| `@workspace` | Yes | Yes | `@project` |
-| `@terminal` | Yes | Yes | Limited |
-| `@vscode` | Yes | `@visualstudio` | — |
-| `@github` | Yes | Yes | Yes |
-
-> **Tip:** Ask `@github What skills are available?` to discover all GitHub-specific capabilities.
-
----
-
-## The "Write Once, Adapt to Both" Pattern
-
-The key insight is that both tools support the same conceptual patterns:
-
-### 1. Project-Level Instructions
-- **Purpose**: Provide context about coding standards, architecture, and preferences
-- **Copilot**: `.github/copilot/instructions.md`
-- **Claude Code**: `CLAUDE.md`
-
-### 2. Reusable Commands/Prompts
-- **Purpose**: Create consistent, repeatable workflows
-- **Copilot**: `.github/prompts/*.prompt.md` with YAML frontmatter, invoked via `/prompt-name`
-- **Claude Code**: `.claude/commands/*.md` with `$ARGUMENTS` placeholder
-
-### 3. Custom Agents/Skills
-- **Purpose**: Specialized assistants for specific tasks
-- **Copilot**: `agents/*.agent.md`
-- **Claude Code**: Configured via settings or MCP
-
-## Comparison: Same Command, Different Syntax
-
-### Code Review Command
-
-**Claude Code** (`.claude/commands/review.md`):
-```markdown
-Review the code in $ARGUMENTS for:
-- Code quality issues
-- Potential bugs
-...
-```
-
-**GitHub Copilot** (`.github/prompts/review.prompt.md`):
-```markdown
----
-mode: 'agent'
-description: 'Review code for quality and issues'
----
-Review the provided code for:
-- Code quality issues
-- Potential bugs
-...
-```
-
-## Try It Out
-
-1. Open `examples/sample.py` to see sample code
-2. In Claude Code: `/review examples/sample.py`
-3. In Copilot Chat: `/review` then provide `examples/sample.py` when prompted
-
-Both tools will provide similar code review output based on their respective prompts.
-
----
-
-## Hooks: Extending Agent Behavior
-
-Both tools support hooks—shell commands that execute at strategic points during agent workflows. This enables security policies, audit logging, and custom automation.
-
-### Hook Types Comparison
-
-| Hook Event | GitHub Copilot | Claude Code |
-|------------|---------------|-------------|
-| Before tool execution | `preToolUse` | `PreToolUse` |
-| After tool execution | `postToolUse` | `PostToolUse` |
-| Session start | `sessionStart` | — |
-| Session end | `sessionEnd` | — |
-| On user prompt | `userPromptSubmitted` | `Notification` |
-| On error | `errorOccurred` | — |
-
-### GitHub Copilot Hooks
-
-Location: `.github/hooks/*.json`
-
-**Example: Block dangerous git commands**
-
-```json
-{
-  "version": "1.0",
-  "hooks": {
-    "preToolUse": [
-      {
-        "type": "command",
-        "commands": {
-          "bash": ".github/hooks/scripts/block-force-push.sh"
-        },
-        "timeout": 30000,
-        "env": {
-          "BLOCKED_PATTERNS": "push --force|reset --hard|clean -fd"
-        }
-      }
-    ]
-  }
-}
-```
-
-**Example: Audit logging**
-
-```json
-{
-  "version": "1.0",
-  "hooks": {
-    "postToolUse": [
-      {
-        "type": "command",
-        "commands": {
-          "bash": "echo \"$(date): Tool executed\" >> .github/hooks/audit.log"
-        },
-        "timeout": 5000
-      }
-    ],
-    "sessionStart": [
-      {
-        "type": "command",
-        "commands": {
-          "bash": "echo \"Session started at $(date)\" >> .github/hooks/audit.log"
-        }
-      }
-    ]
-  }
-}
-```
-
-### Claude Code Hooks
-
-Location: `.claude/settings.json`
-
-**Example: Block dangerous commands**
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash -c '[[ ! \"$TOOL_INPUT\" =~ (rm -rf|sudo|chmod 777) ]]'",
-            "description": "Block dangerous shell commands"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**Example: Auto-format on file write**
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "prettier --write \"$TOOL_INPUT_PATH\" 2>/dev/null || true",
-            "description": "Auto-format written files"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-**Example: Require confirmation for destructive operations**
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash(git push*)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'About to push to remote repository'",
-            "description": "Notify before git push"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### Hooks Capabilities Summary
-
-| Capability | Copilot | Claude Code |
-|------------|---------|-------------|
-| Block tool execution | Yes (`preToolUse` exit code) | Yes (`PreToolUse` exit code) |
-| Modify environment | Yes (env vars) | Yes (env vars) |
-| Audit/logging | Yes | Yes |
-| Platform-specific commands | Yes (bash/powershell) | Yes (shell commands) |
-| Timeout configuration | Yes | Yes |
-| Tool-specific matching | Via script logic | Built-in matcher syntax |
-
----
+| `@workspace` | Codebase context | `@workspace how is authentication implemented?` |
+| `@terminal` | Terminal/shell expertise | `@terminal list the 5 largest files here` |
+| `@vscode` | VS Code settings and features | `@vscode how to enable word wrapping?` |
+| `@github` | GitHub features and web search | `@github what are my open PRs?` |
 
 ## Further Reading
 
-- [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
 - [GitHub Copilot Customization](https://docs.github.com/en/copilot/customizing-copilot)
 - [GitHub Copilot Prompt Files](https://docs.github.com/en/copilot/tutorials/customization-library/prompt-files)
-- [GitHub Copilot Hooks](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-hooks)
-- [GitHub Copilot in VS Code Cheat Sheet](https://code.visualstudio.com/docs/copilot/reference/copilot-vscode-features)
 - [Asking GitHub Copilot Questions in Your IDE](https://docs.github.com/copilot/using-github-copilot/asking-github-copilot-questions-in-your-ide)

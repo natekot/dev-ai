@@ -1,6 +1,6 @@
 # Project Instructions for GitHub Copilot
 
-This is a sandbox project demonstrating the intersection between GitHub Copilot and Claude Code customization patterns.
+This project provides reusable GitHub Copilot prompts for common development tasks.
 
 ## Project Context
 
