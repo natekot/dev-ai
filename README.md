@@ -2,6 +2,61 @@
 
 This project demonstrates the **shared concepts** between GitHub Copilot and Claude Code customization systems. Both tools support similar patterns for customization, just with different syntax and file locations.
 
+**This repository is also installable as a global config system** — install shared AI coding configs once and use them across all your projects.
+
+## Quick Start: Installation
+
+```bash
+# Clone this repository
+git clone https://github.com/yourusername/dev-ai.git
+cd dev-ai
+
+# Install global configs to ~/.claude/ (applies to all projects)
+./install.sh --user
+
+# Install commands/prompts to a specific project
+./install.sh --project /path/to/your/project
+
+# Or install both at once
+./install.sh --all /path/to/your/project
+```
+
+### What Gets Installed
+
+| Mode | What | Where |
+|------|------|-------|
+| `--user` | Global CLAUDE.md | `~/.claude/CLAUDE.md` |
+| `--user` | Global hooks & settings | `~/.claude/settings.json`, `~/.claude/hooks/` |
+| `--project` | Claude commands | `.claude/commands/global/` |
+| `--project` | Copilot prompts | `.github/prompts/global/` |
+| `--project` | Hook scripts | `.claude/hooks/` |
+
+### Usage After Installation
+
+```bash
+# Claude Code commands (from any installed project)
+/project:global/review examples/sample.py
+/project:global/test examples/sample.py
+/project:global/explain examples/sample.py
+/project:global/commit-and-push
+
+# GitHub Copilot prompts
+/global/review
+/global/test
+```
+
+### Managing Installations
+
+```bash
+./install.sh --check              # Check for updates
+./install.sh --update             # Update existing installations
+./install.sh --update --force     # Force update (overwrites customizations)
+./install.sh --uninstall          # Remove installed files
+./install.sh --dry-run --all .    # Preview what would be installed
+```
+
+---
+
 ## Key Intersection Points
 
 | Concept | GitHub Copilot | Claude Code |
@@ -16,33 +71,64 @@ This project demonstrates the **shared concepts** between GitHub Copilot and Cla
 
 ```
 dev-ai/
+├── install.sh                     # Installation script
+├── VERSION                        # Version tracking (for updates)
 ├── README.md                      # This file
-├── CLAUDE.md                      # Claude Code project guidance
-├── .github/
-│   ├── copilot/
-│   │   └── instructions.md        # Copilot project instructions
-│   ├── prompts/                   # Copilot prompt files
-│   │   ├── review.prompt.md
-│   │   ├── test.prompt.md
-│   │   └── explain.prompt.md
-│   └── hooks/
-│       ├── security.json          # Copilot hooks configuration
-│       └── scripts/
-│           ├── validate-command.sh   # Block dangerous commands
-│           └── audit-log.sh          # Log tool executions
+├── CLAUDE.md                      # Claude Code project guidance (local demo)
+│
+├── global/                        # User-level configs (installed to ~/.claude/)
+│   ├── CLAUDE.md                  # Global coding standards
+│   └── settings.json              # Global hooks configuration
+│
+├── commands/                      # Claude commands (installable)
+│   ├── review.md
+│   ├── test.md
+│   ├── explain.md
+│   └── commit-and-push.md
+│
+├── prompts/                       # Copilot prompts (installable)
+│   ├── review.prompt.md
+│   ├── test.prompt.md
+│   ├── explain.prompt.md
+│   └── commit-and-push.prompt.md
+│
+├── hooks/                         # Shared hook scripts (installable)
+│   ├── validate-command.sh        # Block dangerous commands
+│   ├── format-file.sh             # Auto-format on write
+│   └── audit-log.sh               # Log tool executions
+│
+├── examples/                      # Demo files (not installed)
+│   └── sample.py
+│
+└── .claude/                       # Local dev-ai project configs
+    └── commands/                  # (Used when working on dev-ai itself)
+```
+
+### Installation Target Structure
+
+When you run `./install.sh --project /path/to/repo`, files are installed to:
+
+```
+your-repo/
 ├── .claude/
 │   ├── commands/
-│   │   ├── review.md              # Code review command
-│   │   ├── test.md                # Generate tests command
-│   │   └── explain.md             # Explain code command
-│   ├── settings.json              # Claude Code settings (including hooks)
-│   └── hooks/
-│       ├── validate-command.sh    # Block dangerous commands
-│       ├── format-file.sh         # Auto-format on write
-│       └── audit-log.sh           # Log tool executions
-└── examples/
-    └── sample.py                  # Sample code to demo against
+│   │   └── global/                # Global commands (from dev-ai)
+│   │       ├── review.md
+│   │       ├── test.md
+│   │       └── ...
+│   ├── hooks/                     # Hook scripts
+│   │   ├── validate-command.sh
+│   │   └── ...
+│   └── .dev-ai-version            # Version tracking marker
+│
+└── .github/
+    └── prompts/
+        └── global/                # Global prompts (from dev-ai)
+            ├── review.prompt.md
+            └── ...
 ```
+
+This **subdirectory approach** (`global/`) ensures dev-ai configs coexist with repo-specific ones without conflicts.
 
 ## Using This Sandbox
 
