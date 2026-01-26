@@ -1,14 +1,10 @@
-# dev-ai: GitHub Copilot Prompts & Instructions
+# GitHub Copilot Prompts & Instructions
 
 A collection of reusable GitHub Copilot prompts and language-specific instructions for common development tasks. Install once and use across all your projects.
 
 ## Quick Start
 
 ```bash
-# Clone this repository
-git clone https://github.com/yourusername/dev-ai.git
-cd dev-ai
-
 # Install to your project
 ./install.sh /path/to/your/project
 
@@ -51,9 +47,7 @@ In VS Code Copilot Chat, invoke prompts using the `/` syntax:
 
 ```bash
 ./install.sh --instructions       # Install only instructions (no prompts)
-./install.sh --check              # Check for updates
-./install.sh --update             # Update existing installations
-./install.sh --update --force     # Force update (overwrites customizations)
+./install.sh --force              # Force overwrite existing files
 ./install.sh --uninstall          # Remove installed files
 ./install.sh --dry-run            # Preview what would be installed
 ```
@@ -61,9 +55,7 @@ In VS Code Copilot Chat, invoke prompts using the `/` syntax:
 ## Project Structure
 
 ```
-dev-ai/
 ├── install.sh                     # Installation script
-├── VERSION                        # Version tracking
 ├── README.md                      # This file
 │
 ├── prompts/                       # Copilot prompts (installable)
@@ -93,10 +85,11 @@ dev-ai/
 
 ### Installation Target Structure
 
-When you run `./install.sh --project /path/to/repo`, files are installed to:
+When you run `./install.sh /path/to/repo`, files are installed to:
 
 ```
 your-repo/
+├── .gitignore                     # Updated with installed paths
 └── .github/
     ├── copilot-instructions.md    # Global instructions
     ├── instructions/              # Language-specific instructions
@@ -104,18 +97,18 @@ your-repo/
     │   ├── python.instructions.md
     │   ├── bash.instructions.md
     │   ├── testing.instructions.md
-    │   ├── security.instructions.md
-    │   └── .dev-ai-version        # Version tracking
+    │   └── security.instructions.md
     └── prompts/
-        └── global/                # Prompts from dev-ai
+        └── global/                # Installed prompts
             ├── review.prompt.md
             ├── test.prompt.md
             ├── explain.prompt.md
-            ├── commit-and-push.prompt.md
-            └── .dev-ai-version    # Version tracking
+            └── commit-and-push.prompt.md
 ```
 
-The `global/` subdirectory ensures dev-ai prompts coexist with your repo-specific prompts without conflicts. Instructions apply automatically based on file patterns in their `applyTo` frontmatter.
+The `global/` subdirectory ensures installed prompts coexist with your repo-specific prompts without conflicts. Instructions apply automatically based on file patterns in their `applyTo` frontmatter.
+
+Installed paths are automatically added to your project's `.gitignore` to avoid committing them.
 
 ## Available Prompts
 
