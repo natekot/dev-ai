@@ -4,9 +4,9 @@
 :: Creates directory junctions to prompts and instructions in your project.
 ::
 :: Usage:
-::   install.bat [path]              # Install junctions (default: current dir)
-::   install.bat --uninstall         # Remove junctions
-::   install.bat --force             # Overwrite existing directories
+::   install.bat <path>              # Install junctions to target project
+::   install.bat --uninstall <path>  # Remove junctions
+::   install.bat --force <path>      # Overwrite existing directories
 
 setlocal enabledelayedexpansion
 
@@ -40,8 +40,13 @@ shift
 goto :parse_args
 :done_args
 
-:: Default project path to current directory
-if "%PROJECT_PATH%"=="" set "PROJECT_PATH=%CD%"
+:: Require project path
+if "%PROJECT_PATH%"=="" (
+    echo [ERROR] Missing required argument: PATH
+    echo.
+    call :show_help
+    exit /b 1
+)
 
 :: Remove trailing backslash from project path if present
 if "%PROJECT_PATH:~-1%"=="\" set "PROJECT_PATH=%PROJECT_PATH:~0,-1%"
@@ -67,10 +72,10 @@ echo Copilot Prompts ^& Instructions Installation Script (Windows)
 echo.
 echo Creates directory junctions to GitHub Copilot prompts and instructions in your project.
 echo.
-echo Usage: install.bat [PATH] [OPTIONS]
+echo Usage: install.bat ^<PATH^> [OPTIONS]
 echo.
 echo Arguments:
-echo   PATH                  Target directory (default: current directory)
+echo   PATH                  Target project directory (required)
 echo.
 echo Options:
 echo   --uninstall           Remove installed junctions
@@ -79,11 +84,10 @@ echo   --dry-run, -n         Preview changes without making them
 echo   --help, -h            Show this help message
 echo.
 echo Examples:
-echo   install.bat                       # Install to current directory
-echo   install.bat C:\Projects\my-app    # Install to specified project
-echo   install.bat --dry-run             # Preview what would be installed
-echo   install.bat --force               # Force overwrite existing directories
-echo   install.bat --uninstall           # Remove junctions from current project
+echo   install.bat C:\Projects\my-app             # Install to specified project
+echo   install.bat C:\Projects\my-app --dry-run   # Preview what would be installed
+echo   install.bat C:\Projects\my-app --force     # Force overwrite existing
+echo   install.bat --uninstall C:\Projects\my-app # Remove junctions
 echo.
 echo Note: Uses directory junctions (no admin required). Source and target
 echo       must be on the same drive.

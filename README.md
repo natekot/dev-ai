@@ -7,21 +7,13 @@ A collection of reusable GitHub Copilot prompts and language-specific instructio
 ### Linux / macOS
 
 ```bash
-# Install to your project
 ./install.sh /path/to/your/project
-
-# Or install to current directory
-./install.sh
 ```
 
 ### Windows
 
 ```cmd
-:: Install to your project
 install.bat C:\path\to\your\project
-
-:: Or install to current directory
-install.bat
 ```
 
 Note: The Windows installer uses directory junctions (no admin required). Source and target must be on the same drive.
@@ -61,14 +53,14 @@ In VS Code Copilot Chat, invoke prompts using the `/` syntax:
 
 ```bash
 # Linux / macOS
-./install.sh --force              # Force overwrite existing files
-./install.sh --uninstall          # Remove installed symlinks
-./install.sh --dry-run            # Preview what would be installed
+./install.sh /path/to/project --force     # Force overwrite existing files
+./install.sh /path/to/project --dry-run   # Preview what would be installed
+./install.sh --uninstall /path/to/project # Remove installed symlinks
 
 # Windows
-install.bat --force               # Force overwrite existing directories
-install.bat --uninstall           # Remove installed junctions
-install.bat --dry-run             # Preview what would be installed
+install.bat C:\path\to\project --force     # Force overwrite existing
+install.bat C:\path\to\project --dry-run   # Preview what would be installed
+install.bat --uninstall C:\path\to\project # Remove installed junctions
 ```
 
 ## Project Structure

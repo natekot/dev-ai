@@ -4,9 +4,9 @@
 # Creates symlinks to prompts and instructions in your project.
 #
 # Usage:
-#   ./install.sh [path]              # Install symlinks (default: git root)
-#   ./install.sh --uninstall         # Remove symlinks
-#   ./install.sh --force             # Overwrite existing files
+#   ./install.sh <path>              # Install symlinks to target project
+#   ./install.sh --uninstall <path>  # Remove symlinks
+#   ./install.sh --force <path>      # Overwrite existing files
 
 set -e
 
@@ -93,9 +93,12 @@ parse_args() {
         MODE="install"
     fi
 
-    # Default project path to git root or current directory
+    # Require project path
     if [[ -z "$PROJECT_PATH" ]]; then
-        PROJECT_PATH="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+        error "Missing required argument: PATH"
+        echo ""
+        show_help
+        exit 1
     fi
 }
 
@@ -105,10 +108,10 @@ Copilot Prompts & Instructions Installation Script
 
 Creates symlinks to GitHub Copilot prompts and instructions in your project.
 
-Usage: ./install.sh [PATH] [OPTIONS]
+Usage: ./install.sh <PATH> [OPTIONS]
 
 Arguments:
-  PATH                  Target directory (default: git root or current dir)
+  PATH                  Target project directory (required)
 
 Options:
   --uninstall           Remove installed symlinks
@@ -117,11 +120,10 @@ Options:
   --help, -h            Show this help message
 
 Examples:
-  ./install.sh                    # Install to git root
-  ./install.sh ~/my-project       # Install to specified project
-  ./install.sh --dry-run          # Preview what would be installed
-  ./install.sh --force            # Force overwrite existing files
-  ./install.sh --uninstall        # Remove symlinks from current project
+  ./install.sh ~/my-project             # Install to specified project
+  ./install.sh ~/my-project --dry-run   # Preview what would be installed
+  ./install.sh ~/my-project --force     # Force overwrite existing files
+  ./install.sh --uninstall ~/my-project # Remove symlinks
 
 After Installation:
   Copilot prompts: @workspace /global/review, /global/test, etc.
@@ -171,8 +173,7 @@ install() {
 
     # Create symlinks
     create_symlink "$SCRIPT_DIR/.github/prompts" "$target/.github/prompts/global"
-    create_symlink "$SCRIPT_DIR/.github/instructions" "$target/.github/instructions"
-    create_symlink "$SCRIPT_DIR/.github/copilot-instructions.md" "$target/.github/copilot-instructions.md"
+    create_symlink "$SCRIPT_DIR/.github/instructions" "$target/.github/instructions/global"
 
     success "Installation complete"
     echo ""
@@ -202,24 +203,13 @@ uninstall() {
     fi
 
     # Remove instructions symlink
-    if [[ -e "$target/.github/instructions" || -L "$target/.github/instructions" ]]; then
+    if [[ -e "$target/.github/instructions/global" || -L "$target/.github/instructions/global" ]]; then
         if $DRY_RUN; then
-            dry_run_msg "Remove $target/.github/instructions"
+            dry_run_msg "Remove $target/.github/instructions/global"
         else
-            rm -rf "$target/.github/instructions"
+            rm -rf "$target/.github/instructions/global"
         fi
-        success "Removed .github/instructions"
-        found=true
-    fi
-
-    # Remove copilot-instructions.md symlink
-    if [[ -e "$target/.github/copilot-instructions.md" || -L "$target/.github/copilot-instructions.md" ]]; then
-        if $DRY_RUN; then
-            dry_run_msg "Remove $target/.github/copilot-instructions.md"
-        else
-            rm -f "$target/.github/copilot-instructions.md"
-        fi
-        success "Removed .github/copilot-instructions.md"
+        success "Removed .github/instructions/global"
         found=true
     fi
 
