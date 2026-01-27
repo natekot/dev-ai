@@ -137,6 +137,70 @@ echo [OK] Linked %DEST%
 exit /b 0
 
 ::######################################
+:: Add git excludes
+::######################################
+:add_git_excludes
+set "EXCLUDE_FILE=%PROJECT_PATH%\.git\info\exclude"
+
+:: Skip if not a git repo
+if not exist "%PROJECT_PATH%\.git" exit /b 0
+
+:: Skip if already has our marker
+findstr /C:"dev-ai installed" "%EXCLUDE_FILE%" >nul 2>&1 && exit /b 0
+
+if "%DRY_RUN%"=="1" (
+    echo [DRY-RUN] Would add exclusions to %EXCLUDE_FILE%
+    exit /b 0
+)
+
+:: Append our exclusions
+echo.>> "%EXCLUDE_FILE%"
+echo # dev-ai installed prompts/instructions>> "%EXCLUDE_FILE%"
+echo .github/prompts/*.prompt.md>> "%EXCLUDE_FILE%"
+echo .github/instructions/*.instructions.md>> "%EXCLUDE_FILE%"
+
+echo [OK] Added git exclusions (files hidden from git status)
+exit /b 0
+
+::######################################
+:: Remove git excludes
+::######################################
+:remove_git_excludes
+set "EXCLUDE_FILE=%PROJECT_PATH%\.git\info\exclude"
+
+:: Skip if exclude file doesn't exist
+if not exist "%EXCLUDE_FILE%" exit /b 0
+
+:: Skip if our marker is not present
+findstr /C:"dev-ai installed" "%EXCLUDE_FILE%" >nul 2>&1 || exit /b 0
+
+if "%DRY_RUN%"=="1" (
+    echo [DRY-RUN] Would remove exclusions from %EXCLUDE_FILE%
+    exit /b 0
+)
+
+:: Create temp file without our section
+set "TEMP_FILE=%EXCLUDE_FILE%.tmp"
+set "SKIP_LINES=0"
+(
+    for /f "usebackq delims=" %%a in ("%EXCLUDE_FILE%") do (
+        if "%%a"=="# dev-ai installed prompts/instructions" (
+            set "SKIP_LINES=2"
+        ) else if !SKIP_LINES! gtr 0 (
+            set /a "SKIP_LINES=!SKIP_LINES!-1"
+        ) else (
+            echo %%a
+        )
+    )
+) > "%TEMP_FILE%"
+
+:: Replace original with temp (remove trailing blank line if present)
+move /y "%TEMP_FILE%" "%EXCLUDE_FILE%" >nul
+
+echo [OK] Removed git exclusions
+exit /b 0
+
+::######################################
 :: Install
 ::######################################
 :install
@@ -164,6 +228,9 @@ for %%f in ("%SCRIPT_DIR%\.github\prompts\*.prompt.md") do (
 for %%f in ("%SCRIPT_DIR%\.github\instructions\*.instructions.md") do (
     call :create_symlink "%%f" "%TARGET%\.github\instructions\%%~nxf"
 )
+
+:: Add git excludes to hide symlinked files from git status
+call :add_git_excludes
 
 echo [OK] Installation complete
 echo.
@@ -216,6 +283,9 @@ if exist "%TARGET%\.github\instructions\global" (
     echo [OK] Removed .github\instructions\global (old-style)
     set "FOUND=1"
 )
+
+:: Remove git excludes
+call :remove_git_excludes
 
 if "%FOUND%"=="0" echo [INFO] No installation found in %TARGET%
 exit /b 0

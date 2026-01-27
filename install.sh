@@ -158,6 +158,55 @@ create_symlink() {
 }
 
 #######################################
+# Git exclude operations
+#######################################
+
+add_git_excludes() {
+    local target="$1"
+    local exclude_file="$target/.git/info/exclude"
+
+    # Skip if not a git repo
+    [[ ! -d "$target/.git" ]] && return 0
+
+    # Skip if already has our marker
+    grep -q "# dev-ai installed" "$exclude_file" 2>/dev/null && return 0
+
+    if $DRY_RUN; then
+        dry_run_msg "Add exclusions to $exclude_file"
+        return 0
+    fi
+
+    # Append our exclusions
+    {
+        echo ""
+        echo "# dev-ai installed prompts/instructions"
+        echo ".github/prompts/*.prompt.md"
+        echo ".github/instructions/*.instructions.md"
+    } >> "$exclude_file"
+
+    success "Added git exclusions (files hidden from git status)"
+}
+
+remove_git_excludes() {
+    local target="$1"
+    local exclude_file="$target/.git/info/exclude"
+
+    [[ ! -f "$exclude_file" ]] && return 0
+    ! grep -q "# dev-ai installed" "$exclude_file" && return 0
+
+    if $DRY_RUN; then
+        dry_run_msg "Remove exclusions from $exclude_file"
+        return 0
+    fi
+
+    # Remove our section (blank line + marker + 2 patterns)
+    # macOS sed requires '' after -i
+    sed -i '' '/^$/N;/# dev-ai installed/,+2d' "$exclude_file"
+
+    success "Removed git exclusions"
+}
+
+#######################################
 # Installation
 #######################################
 
@@ -192,6 +241,9 @@ install() {
             create_symlink "$instr" "$target/.github/instructions/$filename"
         fi
     done
+
+    # Add git excludes to hide symlinked files from git status
+    add_git_excludes "$target"
 
     success "Installation complete"
     echo ""
@@ -271,6 +323,9 @@ uninstall() {
             found=true
         fi
     fi
+
+    # Remove git excludes
+    remove_git_excludes "$target"
 
     if ! $found; then
         info "No installation found in $target"
