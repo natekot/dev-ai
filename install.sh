@@ -170,9 +170,9 @@ install() {
     info "Installing Copilot prompts and instructions to $target"
 
     # Create symlinks
-    create_symlink "$SCRIPT_DIR/prompts" "$target/.github/prompts/global"
-    create_symlink "$SCRIPT_DIR/instructions" "$target/.github/instructions"
-    create_symlink "$SCRIPT_DIR/instructions/copilot-instructions.md" "$target/.github/copilot-instructions.md"
+    create_symlink "$SCRIPT_DIR/.github/prompts" "$target/.github/prompts/global"
+    create_symlink "$SCRIPT_DIR/.github/instructions" "$target/.github/instructions"
+    create_symlink "$SCRIPT_DIR/.github/copilot-instructions.md" "$target/.github/copilot-instructions.md"
 
     success "Installation complete"
     echo ""

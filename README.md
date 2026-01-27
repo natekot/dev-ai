@@ -4,6 +4,8 @@ A collection of reusable GitHub Copilot prompts and language-specific instructio
 
 ## Quick Start
 
+### Linux / macOS
+
 ```bash
 # Install to your project
 ./install.sh /path/to/your/project
@@ -11,6 +13,18 @@ A collection of reusable GitHub Copilot prompts and language-specific instructio
 # Or install to current directory
 ./install.sh
 ```
+
+### Windows
+
+```cmd
+:: Install to your project
+install.bat C:\path\to\your\project
+
+:: Or install to current directory
+install.bat
+```
+
+Note: The Windows installer uses directory junctions (no admin required). Source and target must be on the same drive.
 
 ## What Gets Installed
 
@@ -25,7 +39,7 @@ A collection of reusable GitHub Copilot prompts and language-specific instructio
 ### Instructions (Language-Specific)
 | File | Applies To | Purpose |
 |------|------------|---------|
-| `copilot-instructions.md` | All files | Global token efficiency guidelines |
+| `global.instructions.md` | All files (`**`) | Global token efficiency guidelines |
 | `c.instructions.md` | `*.c`, `*.h` | C language + K&R style |
 | `python.instructions.md` | `*.py` | Python guidelines |
 | `bash.instructions.md` | `*.sh`, `*.bash` | Bash/Shell guidelines |
@@ -46,69 +60,56 @@ In VS Code Copilot Chat, invoke prompts using the `/` syntax:
 ## Managing Installations
 
 ```bash
-./install.sh --instructions       # Install only instructions (no prompts)
+# Linux / macOS
 ./install.sh --force              # Force overwrite existing files
-./install.sh --uninstall          # Remove installed files
+./install.sh --uninstall          # Remove installed symlinks
 ./install.sh --dry-run            # Preview what would be installed
+
+# Windows
+install.bat --force               # Force overwrite existing directories
+install.bat --uninstall           # Remove installed junctions
+install.bat --dry-run             # Preview what would be installed
 ```
 
 ## Project Structure
 
 ```
-├── install.sh                     # Installation script
+├── install.sh                     # Installation script (Linux/macOS)
+├── install.bat                    # Installation script (Windows)
 ├── README.md                      # This file
-│
-├── prompts/                       # Copilot prompts (installable)
-│   ├── review.prompt.md           # Code review
-│   ├── test.prompt.md             # Test generation
-│   ├── explain.prompt.md          # Code explanation
-│   └── commit-and-push.prompt.md  # Commit workflow
-│
-├── instructions/                  # Copilot instructions (installable)
-│   ├── copilot-instructions.md    # Global (token efficiency)
-│   ├── c.instructions.md          # C language + K&R style
-│   ├── python.instructions.md     # Python guidelines
-│   ├── bash.instructions.md       # Bash/Shell guidelines
-│   ├── testing.instructions.md    # Testing patterns
-│   └── security.instructions.md   # Security guidelines
-│
 ├── examples/                      # Demo files
 │   └── sample.py
 │
-└── .github/                       # This repo's Copilot configs
-    ├── copilot-instructions.md    # Global instructions
-    ├── instructions/              # Language-specific instructions
-    │   └── *.instructions.md
-    └── prompts/
-        └── *.prompt.md            # Local prompts
-```
-
-### Installation Target Structure
-
-When you run `./install.sh /path/to/repo`, files are installed to:
-
-```
-your-repo/
-├── .gitignore                     # Updated with installed paths
-└── .github/
-    ├── copilot-instructions.md    # Global instructions
-    ├── instructions/              # Language-specific instructions
+└── .github/                       # Source prompts & instructions
+    ├── instructions/              # All instructions (including global)
+    │   ├── global.instructions.md
     │   ├── c.instructions.md
     │   ├── python.instructions.md
     │   ├── bash.instructions.md
     │   ├── testing.instructions.md
     │   └── security.instructions.md
     └── prompts/
-        └── global/                # Installed prompts
-            ├── review.prompt.md
-            ├── test.prompt.md
-            ├── explain.prompt.md
-            └── commit-and-push.prompt.md
+        ├── review.prompt.md
+        ├── test.prompt.md
+        ├── explain.prompt.md
+        └── commit-and-push.prompt.md
 ```
 
-The `global/` subdirectory ensures installed prompts coexist with your repo-specific prompts without conflicts. Instructions apply automatically based on file patterns in their `applyTo` frontmatter.
+### Installation Target Structure
 
-Installed paths are automatically added to your project's `.gitignore` to avoid committing them.
+When you run the installer, symlinks (Linux/macOS) or junctions (Windows) are created:
+
+```
+your-repo/.github/
+├── instructions/
+│   ├── global/              ->  dev-ai/.github/instructions/  (link)
+│   └── my.instructions.md   (your repo's own instructions, untouched)
+└── prompts/
+    ├── global/              ->  dev-ai/.github/prompts/  (link)
+    └── my-prompt.prompt.md  (your repo's own prompts, untouched)
+```
+
+The `global/` subdirectories ensure installed content coexists with your repo-specific files without conflicts. Instructions apply automatically based on file patterns in their `applyTo` frontmatter.
 
 ## Available Prompts
 
