@@ -115,7 +115,7 @@ Arguments:
 
 Options:
   --uninstall           Remove installed symlinks
-  --force, -f           Overwrite existing files (default: skip)
+  --force, -f           Overwrite existing files (default: skip with warning)
   --dry-run, -n         Preview changes without making them
   --help, -h            Show this help message
 
@@ -126,7 +126,7 @@ Examples:
   ./install.sh --uninstall ~/my-project # Remove symlinks
 
 After Installation:
-  Copilot prompts: @workspace /global/review, /global/test, etc.
+  Copilot prompts: @workspace /review, /test, etc.
   Instructions apply automatically based on file type (*.c, *.py, *.sh, etc.)
 EOF
 }
@@ -171,13 +171,31 @@ install() {
 
     info "Installing Copilot prompts and instructions to $target"
 
-    # Create symlinks
-    create_symlink "$SCRIPT_DIR/.github/prompts" "$target/.github/prompts/global"
-    create_symlink "$SCRIPT_DIR/.github/instructions" "$target/.github/instructions/global"
+    # Ensure target directories exist
+    if ! $DRY_RUN; then
+        mkdir -p "$target/.github/prompts"
+        mkdir -p "$target/.github/instructions"
+    fi
+
+    # Symlink each prompt file
+    for prompt in "$SCRIPT_DIR/.github/prompts"/*.prompt.md; do
+        if [[ -f "$prompt" ]]; then
+            filename=$(basename "$prompt")
+            create_symlink "$prompt" "$target/.github/prompts/$filename"
+        fi
+    done
+
+    # Symlink each instruction file
+    for instr in "$SCRIPT_DIR/.github/instructions"/*.instructions.md; do
+        if [[ -f "$instr" ]]; then
+            filename=$(basename "$instr")
+            create_symlink "$instr" "$target/.github/instructions/$filename"
+        fi
+    done
 
     success "Installation complete"
     echo ""
-    info "Usage: In VS Code Copilot Chat, use /global/review, /global/test, etc."
+    info "Usage: In VS Code Copilot Chat, use /review, /test, etc."
 }
 
 #######################################
@@ -191,26 +209,67 @@ uninstall() {
 
     local found=false
 
-    # Remove prompts symlink
-    if [[ -e "$target/.github/prompts/global" || -L "$target/.github/prompts/global" ]]; then
-        if $DRY_RUN; then
-            dry_run_msg "Remove $target/.github/prompts/global"
-        else
-            rm -rf "$target/.github/prompts/global"
-        fi
-        success "Removed .github/prompts/global"
-        found=true
+    # Remove prompt symlinks that point to this repo
+    if [[ -d "$target/.github/prompts" ]]; then
+        for file in "$target/.github/prompts"/*.prompt.md; do
+            if [[ -L "$file" ]]; then
+                link_target=$(readlink "$file")
+                if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
+                    if $DRY_RUN; then
+                        dry_run_msg "Remove $file"
+                    else
+                        rm "$file"
+                    fi
+                    success "Removed $(basename "$file")"
+                    found=true
+                fi
+            fi
+        done
     fi
 
-    # Remove instructions symlink
-    if [[ -e "$target/.github/instructions/global" || -L "$target/.github/instructions/global" ]]; then
-        if $DRY_RUN; then
-            dry_run_msg "Remove $target/.github/instructions/global"
-        else
-            rm -rf "$target/.github/instructions/global"
+    # Remove instruction symlinks that point to this repo
+    if [[ -d "$target/.github/instructions" ]]; then
+        for file in "$target/.github/instructions"/*.instructions.md; do
+            if [[ -L "$file" ]]; then
+                link_target=$(readlink "$file")
+                if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
+                    if $DRY_RUN; then
+                        dry_run_msg "Remove $file"
+                    else
+                        rm "$file"
+                    fi
+                    success "Removed $(basename "$file")"
+                    found=true
+                fi
+            fi
+        done
+    fi
+
+    # Also remove old-style global directory symlinks if present (migration)
+    if [[ -L "$target/.github/prompts/global" ]]; then
+        link_target=$(readlink "$target/.github/prompts/global")
+        if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
+            if $DRY_RUN; then
+                dry_run_msg "Remove $target/.github/prompts/global (old-style)"
+            else
+                rm "$target/.github/prompts/global"
+            fi
+            success "Removed .github/prompts/global (old-style)"
+            found=true
         fi
-        success "Removed .github/instructions/global"
-        found=true
+    fi
+
+    if [[ -L "$target/.github/instructions/global" ]]; then
+        link_target=$(readlink "$target/.github/instructions/global")
+        if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
+            if $DRY_RUN; then
+                dry_run_msg "Remove $target/.github/instructions/global (old-style)"
+            else
+                rm "$target/.github/instructions/global"
+            fi
+            success "Removed .github/instructions/global (old-style)"
+            found=true
+        fi
     fi
 
     if ! $found; then

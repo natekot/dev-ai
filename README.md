@@ -16,17 +16,19 @@ A collection of reusable GitHub Copilot prompts and language-specific instructio
 install.bat C:\path\to\your\project
 ```
 
-Note: The Windows installer uses directory junctions (no admin required). Source and target must be on the same drive.
+Note: The Windows installer creates file symlinks, which requires Developer Mode enabled (Windows 10+) or Administrator privileges.
 
 ## What Gets Installed
+
+Individual symlinks are created for each prompt and instruction file:
 
 ### Prompts
 | File | Location | Purpose |
 |------|----------|---------|
-| `review.prompt.md` | `.github/prompts/global/` | Code review prompt |
-| `test.prompt.md` | `.github/prompts/global/` | Test generation prompt |
-| `explain.prompt.md` | `.github/prompts/global/` | Code explanation prompt |
-| `commit-and-push.prompt.md` | `.github/prompts/global/` | Commit workflow prompt |
+| `review.prompt.md` | `.github/prompts/` | Code review prompt |
+| `test.prompt.md` | `.github/prompts/` | Test generation prompt |
+| `explain.prompt.md` | `.github/prompts/` | Code explanation prompt |
+| `commit-and-push.prompt.md` | `.github/prompts/` | Commit workflow prompt |
 
 ### Instructions (Language-Specific)
 | File | Applies To | Purpose |
@@ -43,10 +45,10 @@ Note: The Windows installer uses directory junctions (no admin required). Source
 In VS Code Copilot Chat, invoke prompts using the `/` syntax:
 
 ```
-/global/review examples/sample.py
-/global/test examples/sample.py
-/global/explain examples/sample.py
-/global/commit-and-push
+/review examples/sample.py
+/test examples/sample.py
+/explain examples/sample.py
+/commit-and-push
 ```
 
 ## Managing Installations
@@ -89,44 +91,48 @@ install.bat --uninstall C:\path\to\project # Remove installed junctions
 
 ### Installation Target Structure
 
-When you run the installer, symlinks (Linux/macOS) or junctions (Windows) are created:
+When you run the installer, individual file symlinks are created:
 
 ```
 your-repo/.github/
 ├── instructions/
-│   ├── global/              ->  dev-ai/.github/instructions/  (link)
-│   └── my.instructions.md   (your repo's own instructions, untouched)
+│   ├── bash.instructions.md       ->  dev-ai/.github/instructions/bash.instructions.md
+│   ├── python.instructions.md     ->  dev-ai/.github/instructions/python.instructions.md
+│   ├── ...                        (other instruction symlinks)
+│   └── my.instructions.md         (your repo's own instructions, untouched)
 └── prompts/
-    ├── global/              ->  dev-ai/.github/prompts/  (link)
-    └── my-prompt.prompt.md  (your repo's own prompts, untouched)
+    ├── review.prompt.md           ->  dev-ai/.github/prompts/review.prompt.md
+    ├── test.prompt.md             ->  dev-ai/.github/prompts/test.prompt.md
+    ├── ...                        (other prompt symlinks)
+    └── my-prompt.prompt.md        (your repo's own prompts, untouched)
 ```
 
-The `global/` subdirectories ensure installed content coexists with your repo-specific files without conflicts. Instructions apply automatically based on file patterns in their `applyTo` frontmatter.
+If a file already exists in your project, it will be skipped (use `--force` to overwrite). Instructions apply automatically based on file patterns in their `applyTo` frontmatter.
 
 ## Available Prompts
 
-### `/global/review`
+### `/review`
 Performs a comprehensive code review checking for:
 - Code quality issues
 - Potential bugs
 - Security concerns
 - Readability and maintainability
 
-### `/global/test`
+### `/test`
 Generates tests for your code:
 - Uses pytest as the testing framework
 - Includes happy path and edge case tests
 - Creates descriptive test names
 - Mocks external dependencies
 
-### `/global/explain`
+### `/explain`
 Explains code with:
 - High-level overview
 - Step-by-step breakdown of complex logic
 - Non-obvious patterns and decisions
 - Potential gotchas and edge cases
 
-### `/global/commit-and-push`
+### `/commit-and-push`
 Guides you through committing changes:
 - Reviews staged changes
 - Suggests commit message

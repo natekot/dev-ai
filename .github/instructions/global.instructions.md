@@ -1,3 +1,6 @@
+---
+applyTo: "**"
+---
 # Global Instructions
 
 Be concise; avoid verbose explanations unless asked.

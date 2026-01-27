@@ -1,12 +1,12 @@
 @echo off
 :: install.bat - Copilot Prompts & Instructions Installation Script (Windows)
 ::
-:: Creates directory junctions to prompts and instructions in your project.
+:: Creates symlinks to prompts and instructions in your project.
 ::
 :: Usage:
-::   install.bat <path>              # Install junctions to target project
-::   install.bat --uninstall <path>  # Remove junctions
-::   install.bat --force <path>      # Overwrite existing directories
+::   install.bat <path>              # Install symlinks to target project
+::   install.bat --uninstall <path>  # Remove symlinks
+::   install.bat --force <path>      # Overwrite existing files
 
 setlocal enabledelayedexpansion
 
@@ -70,7 +70,7 @@ exit /b 0
 :show_help
 echo Copilot Prompts ^& Instructions Installation Script (Windows)
 echo.
-echo Creates directory junctions to GitHub Copilot prompts and instructions in your project.
+echo Creates symlinks to GitHub Copilot prompts and instructions in your project.
 echo.
 echo Usage: install.bat ^<PATH^> [OPTIONS]
 echo.
@@ -78,8 +78,8 @@ echo Arguments:
 echo   PATH                  Target project directory (required)
 echo.
 echo Options:
-echo   --uninstall           Remove installed junctions
-echo   --force, -f           Overwrite existing directories (default: skip)
+echo   --uninstall           Remove installed symlinks
+echo   --force, -f           Overwrite existing files (default: skip with warning)
 echo   --dry-run, -n         Preview changes without making them
 echo   --help, -h            Show this help message
 echo.
@@ -87,20 +87,20 @@ echo Examples:
 echo   install.bat C:\Projects\my-app             # Install to specified project
 echo   install.bat C:\Projects\my-app --dry-run   # Preview what would be installed
 echo   install.bat C:\Projects\my-app --force     # Force overwrite existing
-echo   install.bat --uninstall C:\Projects\my-app # Remove junctions
+echo   install.bat --uninstall C:\Projects\my-app # Remove symlinks
 echo.
-echo Note: Uses directory junctions (no admin required). Source and target
-echo       must be on the same drive.
+echo Note: Requires Developer Mode enabled (Windows 10+) or admin privileges
+echo       for creating file symlinks.
 echo.
 echo After Installation:
-echo   Copilot prompts: @workspace /global/review, /global/test, etc.
+echo   Copilot prompts: @workspace /review, /test, etc.
 echo   Instructions apply automatically based on file type (*.c, *.py, *.sh, etc.)
 exit /b 0
 
 ::######################################
-:: Create junction
+:: Create file symlink
 ::######################################
-:create_junction
+:create_symlink
 set "SRC=%~1"
 set "DEST=%~2"
 
@@ -113,13 +113,12 @@ if exist "%DEST%" (
     if "%DRY_RUN%"=="1" (
         echo [DRY-RUN] Would remove: %DEST%
     ) else (
-        rmdir "%DEST%" 2>nul
-        if exist "%DEST%" rd /s /q "%DEST%"
+        del "%DEST%" 2>nul
     )
 )
 
 if "%DRY_RUN%"=="1" (
-    echo [DRY-RUN] Would create junction: %DEST% -^> %SRC%
+    echo [DRY-RUN] Would create symlink: %DEST% -^> %SRC%
     exit /b 0
 )
 
@@ -127,10 +126,11 @@ if "%DRY_RUN%"=="1" (
 for %%i in ("%DEST%") do set "PARENT_DIR=%%~dpi"
 if not exist "%PARENT_DIR%" mkdir "%PARENT_DIR%"
 
-:: Create junction
-mklink /J "%DEST%" "%SRC%" >nul 2>&1
+:: Create file symlink (requires Developer Mode or admin)
+mklink "%DEST%" "%SRC%" >nul 2>&1
 if errorlevel 1 (
-    echo [ERROR] Failed to create junction: %DEST%
+    echo [ERROR] Failed to create symlink: %DEST%
+    echo         Make sure Developer Mode is enabled or run as Administrator
     exit /b 1
 )
 echo [OK] Linked %DEST%
@@ -149,13 +149,25 @@ if not exist "%TARGET%" (
 
 echo [INFO] Installing Copilot prompts and instructions to %TARGET%
 
-:: Create junctions
-call :create_junction "%SCRIPT_DIR%\.github\prompts" "%TARGET%\.github\prompts\global"
-call :create_junction "%SCRIPT_DIR%\.github\instructions" "%TARGET%\.github\instructions\global"
+:: Ensure target directories exist
+if not "%DRY_RUN%"=="1" (
+    if not exist "%TARGET%\.github\prompts" mkdir "%TARGET%\.github\prompts"
+    if not exist "%TARGET%\.github\instructions" mkdir "%TARGET%\.github\instructions"
+)
+
+:: Symlink each prompt file
+for %%f in ("%SCRIPT_DIR%\.github\prompts\*.prompt.md") do (
+    call :create_symlink "%%f" "%TARGET%\.github\prompts\%%~nxf"
+)
+
+:: Symlink each instruction file
+for %%f in ("%SCRIPT_DIR%\.github\instructions\*.instructions.md") do (
+    call :create_symlink "%%f" "%TARGET%\.github\instructions\%%~nxf"
+)
 
 echo [OK] Installation complete
 echo.
-echo [INFO] Usage: In VS Code Copilot Chat, use /global/review, /global/test, etc.
+echo [INFO] Usage: In VS Code Copilot Chat, use /review, /test, etc.
 exit /b 0
 
 ::######################################
@@ -168,27 +180,66 @@ echo [INFO] Uninstalling Copilot configs from %TARGET%
 
 set "FOUND=0"
 
-:: Remove prompts junction
+:: Remove prompt symlinks that correspond to files in this repo
+if exist "%TARGET%\.github\prompts" (
+    for %%f in ("%SCRIPT_DIR%\.github\prompts\*.prompt.md") do (
+        set "TARGET_FILE=%TARGET%\.github\prompts\%%~nxf"
+        call :remove_if_symlink "!TARGET_FILE!"
+    )
+)
+
+:: Remove instruction symlinks that correspond to files in this repo
+if exist "%TARGET%\.github\instructions" (
+    for %%f in ("%SCRIPT_DIR%\.github\instructions\*.instructions.md") do (
+        set "TARGET_FILE=%TARGET%\.github\instructions\%%~nxf"
+        call :remove_if_symlink "!TARGET_FILE!"
+    )
+)
+
+:: Also remove old-style global directory junctions if present (migration)
 if exist "%TARGET%\.github\prompts\global" (
     if "%DRY_RUN%"=="1" (
-        echo [DRY-RUN] Would remove: %TARGET%\.github\prompts\global
+        echo [DRY-RUN] Would remove: %TARGET%\.github\prompts\global (old-style)
     ) else (
         rmdir "%TARGET%\.github\prompts\global" 2>nul
     )
-    echo [OK] Removed .github\prompts\global
+    echo [OK] Removed .github\prompts\global (old-style)
     set "FOUND=1"
 )
 
-:: Remove instructions junction
 if exist "%TARGET%\.github\instructions\global" (
     if "%DRY_RUN%"=="1" (
-        echo [DRY-RUN] Would remove: %TARGET%\.github\instructions\global
+        echo [DRY-RUN] Would remove: %TARGET%\.github\instructions\global (old-style)
     ) else (
         rmdir "%TARGET%\.github\instructions\global" 2>nul
     )
-    echo [OK] Removed .github\instructions\global
+    echo [OK] Removed .github\instructions\global (old-style)
     set "FOUND=1"
 )
 
 if "%FOUND%"=="0" echo [INFO] No installation found in %TARGET%
+exit /b 0
+
+::######################################
+:: Remove file if it's a symlink
+::######################################
+:remove_if_symlink
+set "FILE_PATH=%~1"
+
+:: Check if file exists and is a symlink (has reparse point attribute)
+if not exist "%FILE_PATH%" exit /b 0
+
+:: Use dir to check for SYMLINK attribute
+dir /AL "%FILE_PATH%" >nul 2>&1
+if errorlevel 1 exit /b 0
+
+:: It's a symlink, remove it
+if "%DRY_RUN%"=="1" (
+    echo [DRY-RUN] Would remove: %FILE_PATH%
+) else (
+    del "%FILE_PATH%" 2>nul
+)
+
+for %%i in ("%FILE_PATH%") do echo [OK] Removed %%~nxi
+set "FOUND=1"
 exit /b 0
