@@ -25,10 +25,10 @@ Individual symlinks are created for each prompt and instruction file:
 ### Prompts
 | File | Location | Purpose |
 |------|----------|---------|
-| `review.prompt.md` | `.github/prompts/` | Code review prompt |
-| `test.prompt.md` | `.github/prompts/` | Test generation prompt |
-| `explain.prompt.md` | `.github/prompts/` | Code explanation prompt |
-| `commit-and-push.prompt.md` | `.github/prompts/` | Commit workflow prompt |
+| `resolve.prompt.md` | `.github/prompts/` | Resolve merge conflicts in the working tree |
+| `pr.prompt.md` | `.github/prompts/` | Create a PR with generated description |
+| `ship.prompt.md` | `.github/prompts/` | Stage all, commit, and push |
+| `ship-staged.prompt.md` | `.github/prompts/` | Commit staged changes and push |
 
 ### Instructions (Language-Specific)
 | File | Applies To | Purpose |
@@ -45,10 +45,10 @@ Individual symlinks are created for each prompt and instruction file:
 In VS Code Copilot Chat, invoke prompts using the `/` syntax:
 
 ```
-/review examples/sample.py
-/test examples/sample.py
-/explain examples/sample.py
-/commit-and-push
+/resolve
+/pr
+/ship
+/ship-staged
 ```
 
 ## Managing Installations
@@ -83,10 +83,10 @@ install.bat --uninstall C:\path\to\project # Remove installed junctions
     │   ├── testing.instructions.md
     │   └── security.instructions.md
     └── prompts/
-        ├── review.prompt.md
-        ├── test.prompt.md
-        ├── explain.prompt.md
-        └── commit-and-push.prompt.md
+        ├── resolve.prompt.md
+        ├── pr.prompt.md
+        ├── ship.prompt.md
+        └── ship-staged.prompt.md
 ```
 
 ### Installation Target Structure
@@ -101,8 +101,8 @@ your-repo/.github/
 │   ├── ...                        (other instruction symlinks)
 │   └── my.instructions.md         (your repo's own instructions, untouched)
 └── prompts/
-    ├── review.prompt.md           ->  dev-ai/.github/prompts/review.prompt.md
-    ├── test.prompt.md             ->  dev-ai/.github/prompts/test.prompt.md
+    ├── resolve.prompt.md          ->  dev-ai/.github/prompts/resolve.prompt.md
+    ├── pr.prompt.md               ->  dev-ai/.github/prompts/pr.prompt.md
     ├── ...                        (other prompt symlinks)
     └── my-prompt.prompt.md        (your repo's own prompts, untouched)
 ```
@@ -111,32 +111,31 @@ If a file already exists in your project, it will be skipped (use `--force` to o
 
 ## Available Prompts
 
-### `/review`
-Performs a comprehensive code review checking for:
-- Code quality issues
-- Potential bugs
-- Security concerns
-- Readability and maintainability
+### `/resolve`
+Resolves merge conflicts in the working tree:
+- Finds conflicted files via `git diff --name-only --diff-filter=U`
+- Reads conflict markers and understands both sides
+- Resolves clear-cut conflicts automatically; asks about ambiguous ones
+- Stages each resolved file and verifies no conflicts remain
 
-### `/test`
-Generates tests for your code:
-- Uses pytest as the testing framework
-- Includes happy path and edge case tests
-- Creates descriptive test names
-- Mocks external dependencies
+### `/pr`
+Creates a pull request with a generated description:
+- Compares the current branch against the default branch
+- Reads the commit log and diff
+- Generates a conventional-commit-style title and structured description
+- Creates the PR using `gh pr create`
 
-### `/explain`
-Explains code with:
-- High-level overview
-- Step-by-step breakdown of complex logic
-- Non-obvious patterns and decisions
-- Potential gotchas and edge cases
+### `/ship`
+Stages all changes, commits, and pushes:
+- Runs `git add -A` to stage everything
+- Writes a conventional commit message from the diff
+- Pushes to the current branch's upstream
 
-### `/commit-and-push`
-Guides you through committing changes:
-- Reviews staged changes
-- Suggests commit message
-- Handles the commit workflow
+### `/ship-staged`
+Commits already-staged changes and pushes:
+- Commits only what is already staged
+- Writes a conventional commit message from the diff
+- Pushes to the current branch's upstream
 
 ## Copilot Chat Participants
 
