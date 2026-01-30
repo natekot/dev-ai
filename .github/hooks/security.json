@@ -1,45 +1,36 @@
 {
-  "version": "1.0",
+  "version": 1,
   "hooks": {
     "preToolUse": [
       {
         "type": "command",
-        "commands": {
-          "bash": ".github/hooks/scripts/validate-command.sh",
-          "powershell": ".github/hooks/scripts/validate-command.ps1"
-        },
-        "timeout": 30000,
-        "description": "Validate commands before execution"
+        "bash": ".github/hooks/scripts/validate-command.sh",
+        "timeoutSec": 30,
+        "comment": "Validate commands before execution"
       }
     ],
     "postToolUse": [
       {
         "type": "command",
-        "commands": {
-          "bash": ".github/hooks/scripts/audit-log.sh"
-        },
-        "timeout": 5000,
-        "description": "Log tool executions for audit trail"
+        "bash": ".github/hooks/scripts/audit-log.sh",
+        "timeoutSec": 5,
+        "comment": "Log tool executions for audit trail"
       }
     ],
     "sessionStart": [
       {
         "type": "command",
-        "commands": {
-          "bash": "echo \"[$(date -Iseconds)] Session started\" >> .github/hooks/audit.log"
-        },
-        "timeout": 5000,
-        "description": "Log session start"
+        "bash": "echo \"[$(date -Iseconds)] Session started\" >> .github/hooks/audit.log",
+        "timeoutSec": 5,
+        "comment": "Log session start"
       }
     ],
     "sessionEnd": [
       {
         "type": "command",
-        "commands": {
-          "bash": "echo \"[$(date -Iseconds)] Session ended\" >> .github/hooks/audit.log"
-        },
-        "timeout": 5000,
-        "description": "Log session end"
+        "bash": "echo \"[$(date -Iseconds)] Session ended\" >> .github/hooks/audit.log",
+        "timeoutSec": 5,
+        "comment": "Log session end"
       }
     ]
   }
