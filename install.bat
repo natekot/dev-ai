@@ -1,7 +1,7 @@
 @echo off
-:: install.bat - Copilot Prompts & Instructions Installation Script (Windows)
+:: install.bat - Copilot Prompts, Instructions & Hooks Installation Script (Windows)
 ::
-:: Creates symlinks to prompts and instructions in your project.
+:: Creates symlinks to prompts, instructions, and hooks in your project.
 ::
 :: Usage:
 ::   install.bat <path>              # Install symlinks to target project
@@ -68,9 +68,9 @@ exit /b 0
 :: Show help
 ::######################################
 :show_help
-echo Copilot Prompts ^& Instructions Installation Script (Windows)
+echo Copilot Prompts, Instructions ^& Hooks Installation Script (Windows)
 echo.
-echo Creates symlinks to GitHub Copilot prompts and instructions in your project.
+echo Creates symlinks to GitHub Copilot prompts, instructions, and hooks in your project.
 echo.
 echo Usage: install.bat ^<PATH^> [OPTIONS]
 echo.
@@ -155,9 +155,11 @@ if "%DRY_RUN%"=="1" (
 
 :: Append our exclusions
 echo.>> "%EXCLUDE_FILE%"
-echo # dev-ai installed prompts/instructions>> "%EXCLUDE_FILE%"
+echo # dev-ai installed prompts/instructions/hooks>> "%EXCLUDE_FILE%"
 echo .github/prompts/*.prompt.md>> "%EXCLUDE_FILE%"
 echo .github/instructions/*.instructions.md>> "%EXCLUDE_FILE%"
+echo .github/hooks/*.json>> "%EXCLUDE_FILE%"
+echo .github/hooks/scripts/>> "%EXCLUDE_FILE%"
 
 echo [OK] Added git exclusions (files hidden from git status)
 exit /b 0
@@ -184,8 +186,8 @@ set "TEMP_FILE=%EXCLUDE_FILE%.tmp"
 set "SKIP_LINES=0"
 (
     for /f "usebackq delims=" %%a in ("%EXCLUDE_FILE%") do (
-        if "%%a"=="# dev-ai installed prompts/instructions" (
-            set "SKIP_LINES=2"
+        if "%%a"=="# dev-ai installed prompts/instructions/hooks" (
+            set "SKIP_LINES=4"
         ) else if !SKIP_LINES! gtr 0 (
             set /a "SKIP_LINES=!SKIP_LINES!-1"
         ) else (
@@ -229,6 +231,22 @@ for %%f in ("%SCRIPT_DIR%\.github\instructions\*.instructions.md") do (
     call :create_symlink "%%f" "%TARGET%\.github\instructions\%%~nxf"
 )
 
+:: Symlink hook config files
+if not "%DRY_RUN%"=="1" (
+    if not exist "%TARGET%\.github\hooks" mkdir "%TARGET%\.github\hooks"
+)
+for %%f in ("%SCRIPT_DIR%\.github\hooks\*.json") do (
+    call :create_symlink "%%f" "%TARGET%\.github\hooks\%%~nxf"
+)
+
+:: Symlink hook scripts
+if not "%DRY_RUN%"=="1" (
+    if not exist "%TARGET%\.github\hooks\scripts" mkdir "%TARGET%\.github\hooks\scripts"
+)
+for %%f in ("%SCRIPT_DIR%\.github\hooks\scripts\*") do (
+    call :create_symlink "%%f" "%TARGET%\.github\hooks\scripts\%%~nxf"
+)
+
 :: Add git excludes to hide symlinked files from git status
 call :add_git_excludes
 
@@ -259,6 +277,22 @@ if exist "%TARGET%\.github\prompts" (
 if exist "%TARGET%\.github\instructions" (
     for %%f in ("%SCRIPT_DIR%\.github\instructions\*.instructions.md") do (
         set "TARGET_FILE=%TARGET%\.github\instructions\%%~nxf"
+        call :remove_if_symlink "!TARGET_FILE!"
+    )
+)
+
+:: Remove hook config symlinks that correspond to files in this repo
+if exist "%TARGET%\.github\hooks" (
+    for %%f in ("%SCRIPT_DIR%\.github\hooks\*.json") do (
+        set "TARGET_FILE=%TARGET%\.github\hooks\%%~nxf"
+        call :remove_if_symlink "!TARGET_FILE!"
+    )
+)
+
+:: Remove hook script symlinks that correspond to files in this repo
+if exist "%TARGET%\.github\hooks\scripts" (
+    for %%f in ("%SCRIPT_DIR%\.github\hooks\scripts\*") do (
+        set "TARGET_FILE=%TARGET%\.github\hooks\scripts\%%~nxf"
         call :remove_if_symlink "!TARGET_FILE!"
     )
 )

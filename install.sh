@@ -1,7 +1,7 @@
 #!/bin/bash
-# install.sh - Copilot Prompts & Instructions Installation Script
+# install.sh - Copilot Prompts, Instructions & Hooks Installation Script
 #
-# Creates symlinks to prompts and instructions in your project.
+# Creates symlinks to prompts, instructions, and hooks in your project.
 #
 # Usage:
 #   ./install.sh <path>              # Install symlinks to target project
@@ -104,9 +104,9 @@ parse_args() {
 
 show_help() {
     cat << EOF
-Copilot Prompts & Instructions Installation Script
+Copilot Prompts, Instructions & Hooks Installation Script
 
-Creates symlinks to GitHub Copilot prompts and instructions in your project.
+Creates symlinks to GitHub Copilot prompts, instructions, and hooks in your project.
 
 Usage: ./install.sh <PATH> [OPTIONS]
 
@@ -179,9 +179,11 @@ add_git_excludes() {
     # Append our exclusions
     {
         echo ""
-        echo "# dev-ai installed prompts/instructions"
+        echo "# dev-ai installed prompts/instructions/hooks"
         echo ".github/prompts/*.prompt.md"
         echo ".github/instructions/*.instructions.md"
+        echo ".github/hooks/*.json"
+        echo ".github/hooks/scripts/"
     } >> "$exclude_file"
 
     success "Added git exclusions (files hidden from git status)"
@@ -199,9 +201,9 @@ remove_git_excludes() {
         return 0
     fi
 
-    # Remove our section (blank line + marker + 2 patterns)
+    # Remove our section (blank line + marker + patterns)
     # macOS sed requires '' after -i
-    sed -i '' '/^$/N;/# dev-ai installed/,+2d' "$exclude_file"
+    sed -i '' '/^$/N;/# dev-ai installed/,+4d' "$exclude_file"
 
     success "Removed git exclusions"
 }
@@ -239,6 +241,28 @@ install() {
         if [[ -f "$instr" ]]; then
             filename=$(basename "$instr")
             create_symlink "$instr" "$target/.github/instructions/$filename"
+        fi
+    done
+
+    # Symlink hook config files
+    for hook in "$SCRIPT_DIR/.github/hooks"/*.json; do
+        if [[ -f "$hook" ]]; then
+            filename=$(basename "$hook")
+            if ! $DRY_RUN; then
+                mkdir -p "$target/.github/hooks"
+            fi
+            create_symlink "$hook" "$target/.github/hooks/$filename"
+        fi
+    done
+
+    # Symlink hook scripts
+    for script in "$SCRIPT_DIR/.github/hooks/scripts"/*; do
+        if [[ -f "$script" ]]; then
+            filename=$(basename "$script")
+            if ! $DRY_RUN; then
+                mkdir -p "$target/.github/hooks/scripts"
+            fi
+            create_symlink "$script" "$target/.github/hooks/scripts/$filename"
         fi
     done
 
@@ -291,6 +315,42 @@ uninstall() {
                         rm "$file"
                     fi
                     success "Removed $(basename "$file")"
+                    found=true
+                fi
+            fi
+        done
+    fi
+
+    # Remove hook config symlinks that point to this repo
+    if [[ -d "$target/.github/hooks" ]]; then
+        for file in "$target/.github/hooks"/*.json; do
+            if [[ -L "$file" ]]; then
+                link_target=$(readlink "$file")
+                if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
+                    if $DRY_RUN; then
+                        dry_run_msg "Remove $file"
+                    else
+                        rm "$file"
+                    fi
+                    success "Removed $(basename "$file")"
+                    found=true
+                fi
+            fi
+        done
+    fi
+
+    # Remove hook script symlinks that point to this repo
+    if [[ -d "$target/.github/hooks/scripts" ]]; then
+        for file in "$target/.github/hooks/scripts"/*; do
+            if [[ -L "$file" ]]; then
+                link_target=$(readlink "$file")
+                if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
+                    if $DRY_RUN; then
+                        dry_run_msg "Remove $file"
+                    else
+                        rm "$file"
+                    fi
+                    success "Removed hooks/scripts/$(basename "$file")"
                     found=true
                 fi
             fi

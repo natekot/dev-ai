@@ -11,8 +11,15 @@ INPUT=$(cat)
 LOG_DIR=".github/hooks"
 LOG_FILE="$LOG_DIR/audit.log"
 
-# Extract tool information (adjust based on actual JSON structure)
-TOOL_NAME=$(echo "$INPUT" | grep -o '"tool"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*: *"//' | sed 's/"$//')
+# Extract tool information using jq or python3 fallback
+if command -v jq >/dev/null 2>&1; then
+    TOOL_NAME=$(echo "$INPUT" | jq -r '.tool // empty')
+elif command -v python3 >/dev/null 2>&1; then
+    TOOL_NAME=$(echo "$INPUT" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("tool",""))' 2>/dev/null)
+else
+    TOOL_NAME=""
+fi
+
 TIMESTAMP=$(date -Iseconds)
 
 # Log the execution

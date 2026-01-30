@@ -40,6 +40,13 @@ Individual symlinks are created for each prompt and instruction file:
 | `testing.instructions.md` | `test_*.py`, `*_test.c`, etc. | Testing patterns |
 | `security.instructions.md` | All files | Security guidelines |
 
+### Hooks
+| File | Type | Purpose |
+|------|------|---------|
+| `security.json` | `.github/hooks/` | Hook configuration (preToolUse, postToolUse, session events) |
+| `validate-command.sh` | `.github/hooks/scripts/` | Block dangerous commands before execution |
+| `audit-log.sh` | `.github/hooks/scripts/` | Log tool executions with timestamps |
+
 ## Usage After Installation
 
 In VS Code Copilot Chat, invoke prompts using the `/` syntax:
@@ -74,7 +81,12 @@ install.bat --uninstall C:\path\to\project # Remove installed junctions
 ├── examples/                      # Demo files
 │   └── sample.py
 │
-└── .github/                       # Source prompts & instructions
+└── .github/                       # Source prompts, instructions & hooks
+    ├── hooks/                     # Copilot coding-agent hooks
+    │   ├── security.json          # Hook configuration
+    │   └── scripts/
+    │       ├── validate-command.sh
+    │       └── audit-log.sh
     ├── instructions/              # All instructions (including global)
     │   ├── global.instructions.md
     │   ├── c.instructions.md
@@ -95,6 +107,11 @@ When you run the installer, individual file symlinks are created:
 
 ```
 your-repo/.github/
+├── hooks/
+│   ├── security.json              ->  dev-ai/.github/hooks/security.json
+│   └── scripts/
+│       ├── validate-command.sh    ->  dev-ai/.github/hooks/scripts/validate-command.sh
+│       └── audit-log.sh           ->  dev-ai/.github/hooks/scripts/audit-log.sh
 ├── instructions/
 │   ├── bash.instructions.md       ->  dev-ai/.github/instructions/bash.instructions.md
 │   ├── python.instructions.md     ->  dev-ai/.github/instructions/python.instructions.md
@@ -136,6 +153,27 @@ Commits already-staged changes and pushes:
 - Commits only what is already staged
 - Writes a conventional commit message from the diff
 - Pushes to the current branch's upstream
+
+## Hooks
+
+The installer also sets up Copilot coding-agent hooks in `.github/hooks/`. These hooks run automatically during Copilot sessions:
+
+### `validate-command.sh` (preToolUse)
+Intercepts tool calls before execution and blocks dangerous commands:
+- `rm -rf /`, `rm -rf ~`, `sudo rm`
+- `chmod 777`, `git push --force`, `git reset --hard`
+- Destructive disk operations (`mkfs`, `dd if=`, `> /dev/sda`)
+
+Uses `jq` for JSON parsing when available, falls back to `python3`.
+
+### `audit-log.sh` (postToolUse)
+Logs every tool execution with an ISO-8601 timestamp to `.github/hooks/audit.log` for compliance and debugging. Never blocks — always exits successfully.
+
+### `security.json`
+Configuration file that wires the scripts into Copilot's hook lifecycle:
+- **preToolUse** — runs `validate-command.sh` before shell commands
+- **postToolUse** — runs `audit-log.sh` after any tool use
+- **sessionStart / sessionEnd** — appends session markers to the audit log
 
 ## Copilot Chat Participants
 

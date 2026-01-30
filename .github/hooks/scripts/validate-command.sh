@@ -8,8 +8,15 @@
 # Read the tool input from stdin
 INPUT=$(cat)
 
-# Extract the command being executed (adjust based on actual JSON structure)
-COMMAND=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*: *"//' | sed 's/"$//')
+# Extract the command being executed using jq or python3 fallback
+if command -v jq >/dev/null 2>&1; then
+    COMMAND=$(echo "$INPUT" | jq -r '.command // empty')
+elif command -v python3 >/dev/null 2>&1; then
+    COMMAND=$(echo "$INPUT" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("command",""))' 2>/dev/null)
+else
+    # Last resort: allow the command rather than block everything
+    exit 0
+fi
 
 # Define blocked patterns
 BLOCKED_PATTERNS=(
