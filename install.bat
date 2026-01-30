@@ -1,7 +1,7 @@
 @echo off
-:: install.bat - Copilot Prompts, Instructions & Hooks Installation Script (Windows)
+:: install.bat - Skills, Instructions & Hooks Installation Script (Windows)
 ::
-:: Creates symlinks to prompts, instructions, and hooks in your project.
+:: Creates symlinks to skills, instructions, and hooks in your project.
 ::
 :: Usage:
 ::   install.bat <path>              # Install symlinks to target project
@@ -52,7 +52,7 @@ if "%PROJECT_PATH%"=="" (
 if "%PROJECT_PATH:~-1%"=="\" set "PROJECT_PATH=%PROJECT_PATH:~0,-1%"
 
 echo.
-echo [INFO] Copilot Prompts ^& Instructions Installer
+echo [INFO] Skills, Instructions ^& Hooks Installer
 if "%DRY_RUN%"=="1" echo [WARN] DRY RUN MODE - No changes will be made
 echo.
 
@@ -68,9 +68,9 @@ exit /b 0
 :: Show help
 ::######################################
 :show_help
-echo Copilot Prompts, Instructions ^& Hooks Installation Script (Windows)
+echo Skills, Instructions ^& Hooks Installation Script (Windows)
 echo.
-echo Creates symlinks to GitHub Copilot prompts, instructions, and hooks in your project.
+echo Creates symlinks to skills, instructions, and hooks in your project.
 echo.
 echo Usage: install.bat ^<PATH^> [OPTIONS]
 echo.
@@ -90,10 +90,10 @@ echo   install.bat C:\Projects\my-app --force     # Force overwrite existing
 echo   install.bat --uninstall C:\Projects\my-app # Remove symlinks
 echo.
 echo Note: Requires Developer Mode enabled (Windows 10+) or admin privileges
-echo       for creating file symlinks.
+echo       for creating symlinks and junctions.
 echo.
 echo After Installation:
-echo   Copilot prompts: @workspace /review, /test, etc.
+echo   Skills: /resolve, /pr, /ship, /ship-staged, /pdf, /skill-creator
 echo   Instructions apply automatically based on file type (*.c, *.py, *.sh, etc.)
 exit /b 0
 
@@ -137,6 +137,44 @@ echo [OK] Linked %DEST%
 exit /b 0
 
 ::######################################
+:: Create directory junction
+::######################################
+:create_junction
+set "SRC=%~1"
+set "DEST=%~2"
+
+:: Check if destination exists
+if exist "%DEST%" (
+    if "%FORCE%"=="0" (
+        echo [WARN] Skipping %DEST% (exists, use --force to overwrite)
+        exit /b 0
+    )
+    if "%DRY_RUN%"=="1" (
+        echo [DRY-RUN] Would remove: %DEST%
+    ) else (
+        rmdir "%DEST%" 2>nul
+    )
+)
+
+if "%DRY_RUN%"=="1" (
+    echo [DRY-RUN] Would create junction: %DEST% -^> %SRC%
+    exit /b 0
+)
+
+:: Ensure parent directory exists
+for %%i in ("%DEST%") do set "PARENT_DIR=%%~dpi"
+if not exist "%PARENT_DIR%" mkdir "%PARENT_DIR%"
+
+:: Create directory junction (does not require admin)
+mklink /J "%DEST%" "%SRC%" >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Failed to create junction: %DEST%
+    exit /b 1
+)
+echo [OK] Linked %DEST%
+exit /b 0
+
+::######################################
 :: Add git excludes
 ::######################################
 :add_git_excludes
@@ -155,8 +193,8 @@ if "%DRY_RUN%"=="1" (
 
 :: Append our exclusions
 echo.>> "%EXCLUDE_FILE%"
-echo # dev-ai installed prompts/instructions/hooks>> "%EXCLUDE_FILE%"
-echo .github/prompts/*.prompt.md>> "%EXCLUDE_FILE%"
+echo # dev-ai installed skills/instructions/hooks>> "%EXCLUDE_FILE%"
+echo .github/skills/>> "%EXCLUDE_FILE%"
 echo .github/instructions/*.instructions.md>> "%EXCLUDE_FILE%"
 echo .github/hooks/*.json>> "%EXCLUDE_FILE%"
 echo .github/hooks/scripts/>> "%EXCLUDE_FILE%"
@@ -186,7 +224,7 @@ set "TEMP_FILE=%EXCLUDE_FILE%.tmp"
 set "SKIP_LINES=0"
 (
     for /f "usebackq delims=" %%a in ("%EXCLUDE_FILE%") do (
-        if "%%a"=="# dev-ai installed prompts/instructions/hooks" (
+        if "%%a"=="# dev-ai installed skills/instructions/hooks" (
             set "SKIP_LINES=4"
         ) else if !SKIP_LINES! gtr 0 (
             set /a "SKIP_LINES=!SKIP_LINES!-1"
@@ -213,17 +251,17 @@ if not exist "%TARGET%" (
     exit /b 1
 )
 
-echo [INFO] Installing Copilot prompts and instructions to %TARGET%
+echo [INFO] Installing skills, instructions, and hooks to %TARGET%
 
 :: Ensure target directories exist
 if not "%DRY_RUN%"=="1" (
-    if not exist "%TARGET%\.github\prompts" mkdir "%TARGET%\.github\prompts"
+    if not exist "%TARGET%\.github\skills" mkdir "%TARGET%\.github\skills"
     if not exist "%TARGET%\.github\instructions" mkdir "%TARGET%\.github\instructions"
 )
 
-:: Symlink each prompt file
-for %%f in ("%SCRIPT_DIR%\.github\prompts\*.prompt.md") do (
-    call :create_symlink "%%f" "%TARGET%\.github\prompts\%%~nxf"
+:: Junction each skill directory
+for /d %%d in ("%SCRIPT_DIR%\.github\skills\*") do (
+    call :create_junction "%%d" "%TARGET%\.github\skills\%%~nxd"
 )
 
 :: Symlink each instruction file
@@ -252,7 +290,7 @@ call :add_git_excludes
 
 echo [OK] Installation complete
 echo.
-echo [INFO] Usage: In VS Code Copilot Chat, use /review, /test, etc.
+echo [INFO] Skills installed: /resolve, /pr, /ship, /ship-staged, /pdf, /skill-creator
 exit /b 0
 
 ::######################################
@@ -261,15 +299,15 @@ exit /b 0
 :uninstall
 set "TARGET=%PROJECT_PATH%"
 
-echo [INFO] Uninstalling Copilot configs from %TARGET%
+echo [INFO] Uninstalling skills, instructions, and hooks from %TARGET%
 
 set "FOUND=0"
 
-:: Remove prompt symlinks that correspond to files in this repo
-if exist "%TARGET%\.github\prompts" (
-    for %%f in ("%SCRIPT_DIR%\.github\prompts\*.prompt.md") do (
-        set "TARGET_FILE=%TARGET%\.github\prompts\%%~nxf"
-        call :remove_if_symlink "!TARGET_FILE!"
+:: Remove skill directory junctions that correspond to dirs in this repo
+if exist "%TARGET%\.github\skills" (
+    for /d %%d in ("%SCRIPT_DIR%\.github\skills\*") do (
+        set "TARGET_DIR=%TARGET%\.github\skills\%%~nxd"
+        call :remove_if_junction "!TARGET_DIR!"
     )
 )
 
@@ -295,27 +333,6 @@ if exist "%TARGET%\.github\hooks\scripts" (
         set "TARGET_FILE=%TARGET%\.github\hooks\scripts\%%~nxf"
         call :remove_if_symlink "!TARGET_FILE!"
     )
-)
-
-:: Also remove old-style global directory junctions if present (migration)
-if exist "%TARGET%\.github\prompts\global" (
-    if "%DRY_RUN%"=="1" (
-        echo [DRY-RUN] Would remove: %TARGET%\.github\prompts\global (old-style)
-    ) else (
-        rmdir "%TARGET%\.github\prompts\global" 2>nul
-    )
-    echo [OK] Removed .github\prompts\global (old-style)
-    set "FOUND=1"
-)
-
-if exist "%TARGET%\.github\instructions\global" (
-    if "%DRY_RUN%"=="1" (
-        echo [DRY-RUN] Would remove: %TARGET%\.github\instructions\global (old-style)
-    ) else (
-        rmdir "%TARGET%\.github\instructions\global" 2>nul
-    )
-    echo [OK] Removed .github\instructions\global (old-style)
-    set "FOUND=1"
 )
 
 :: Remove git excludes
@@ -345,5 +362,29 @@ if "%DRY_RUN%"=="1" (
 )
 
 for %%i in ("%FILE_PATH%") do echo [OK] Removed %%~nxi
+set "FOUND=1"
+exit /b 0
+
+::######################################
+:: Remove directory if it's a junction
+::######################################
+:remove_if_junction
+set "DIR_PATH=%~1"
+
+:: Check if directory exists
+if not exist "%DIR_PATH%" exit /b 0
+
+:: Use dir to check for JUNCTION attribute
+dir /AL "%DIR_PATH%" >nul 2>&1
+if errorlevel 1 exit /b 0
+
+:: It's a junction, remove it
+if "%DRY_RUN%"=="1" (
+    echo [DRY-RUN] Would remove: %DIR_PATH%
+) else (
+    rmdir "%DIR_PATH%" 2>nul
+)
+
+for %%i in ("%DIR_PATH%") do echo [OK] Removed skill %%~nxi
 set "FOUND=1"
 exit /b 0

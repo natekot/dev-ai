@@ -1,6 +1,6 @@
 # Project Instructions for GitHub Copilot
 
-This project provides reusable GitHub Copilot prompts for common development tasks.
+This project provides reusable skills, instructions, and hooks for AI coding agents.
 
 ## Project Context
 

@@ -1,7 +1,7 @@
 #!/bin/bash
-# install.sh - Copilot Prompts, Instructions & Hooks Installation Script
+# install.sh - Skills, Instructions & Hooks Installation Script
 #
-# Creates symlinks to prompts, instructions, and hooks in your project.
+# Creates symlinks to skills, instructions, and hooks in your project.
 #
 # Usage:
 #   ./install.sh <path>              # Install symlinks to target project
@@ -104,9 +104,9 @@ parse_args() {
 
 show_help() {
     cat << EOF
-Copilot Prompts, Instructions & Hooks Installation Script
+Skills, Instructions & Hooks Installation Script
 
-Creates symlinks to GitHub Copilot prompts, instructions, and hooks in your project.
+Creates symlinks to skills, instructions, and hooks in your project.
 
 Usage: ./install.sh <PATH> [OPTIONS]
 
@@ -126,7 +126,7 @@ Examples:
   ./install.sh --uninstall ~/my-project # Remove symlinks
 
 After Installation:
-  Copilot prompts: @workspace /review, /test, etc.
+  Skills: /resolve, /pr, /ship, /ship-staged, /pdf, /skill-creator
   Instructions apply automatically based on file type (*.c, *.py, *.sh, etc.)
 EOF
 }
@@ -179,8 +179,8 @@ add_git_excludes() {
     # Append our exclusions
     {
         echo ""
-        echo "# dev-ai installed prompts/instructions/hooks"
-        echo ".github/prompts/*.prompt.md"
+        echo "# dev-ai installed skills/instructions/hooks"
+        echo ".github/skills/"
         echo ".github/instructions/*.instructions.md"
         echo ".github/hooks/*.json"
         echo ".github/hooks/scripts/"
@@ -201,7 +201,7 @@ remove_git_excludes() {
         return 0
     fi
 
-    # Remove our section (blank line + marker + patterns)
+    # Remove our section (blank line + marker + 4 patterns)
     # macOS sed requires '' after -i
     sed -i '' '/^$/N;/# dev-ai installed/,+4d' "$exclude_file"
 
@@ -220,19 +220,19 @@ install() {
         exit 1
     fi
 
-    info "Installing Copilot prompts and instructions to $target"
+    info "Installing skills, instructions, and hooks to $target"
 
     # Ensure target directories exist
     if ! $DRY_RUN; then
-        mkdir -p "$target/.github/prompts"
+        mkdir -p "$target/.github/skills"
         mkdir -p "$target/.github/instructions"
     fi
 
-    # Symlink each prompt file
-    for prompt in "$SCRIPT_DIR/.github/prompts"/*.prompt.md; do
-        if [[ -f "$prompt" ]]; then
-            filename=$(basename "$prompt")
-            create_symlink "$prompt" "$target/.github/prompts/$filename"
+    # Symlink each skill directory
+    for skill_dir in "$SCRIPT_DIR/.github/skills"/*/; do
+        if [[ -d "$skill_dir" ]]; then
+            dirname=$(basename "$skill_dir")
+            create_symlink "$skill_dir" "$target/.github/skills/$dirname"
         fi
     done
 
@@ -271,7 +271,7 @@ install() {
 
     success "Installation complete"
     echo ""
-    info "Usage: In VS Code Copilot Chat, use /review, /test, etc."
+    info "Skills installed: /resolve, /pr, /ship, /ship-staged, /pdf, /skill-creator"
 }
 
 #######################################
@@ -281,22 +281,24 @@ install() {
 uninstall() {
     local target="$PROJECT_PATH"
 
-    info "Uninstalling Copilot configs from $target"
+    info "Uninstalling skills, instructions, and hooks from $target"
 
     local found=false
 
-    # Remove prompt symlinks that point to this repo
-    if [[ -d "$target/.github/prompts" ]]; then
-        for file in "$target/.github/prompts"/*.prompt.md; do
-            if [[ -L "$file" ]]; then
-                link_target=$(readlink "$file")
+    # Remove skill directory symlinks that point to this repo
+    if [[ -d "$target/.github/skills" ]]; then
+        for skill_dir in "$target/.github/skills"/*/; do
+            dirname=$(basename "$skill_dir")
+            link_path="$target/.github/skills/$dirname"
+            if [[ -L "$link_path" ]]; then
+                link_target=$(readlink "$link_path")
                 if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
                     if $DRY_RUN; then
-                        dry_run_msg "Remove $file"
+                        dry_run_msg "Remove $link_path"
                     else
-                        rm "$file"
+                        rm "$link_path"
                     fi
-                    success "Removed $(basename "$file")"
+                    success "Removed skill $dirname"
                     found=true
                 fi
             fi
@@ -357,33 +359,6 @@ uninstall() {
         done
     fi
 
-    # Also remove old-style global directory symlinks if present (migration)
-    if [[ -L "$target/.github/prompts/global" ]]; then
-        link_target=$(readlink "$target/.github/prompts/global")
-        if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
-            if $DRY_RUN; then
-                dry_run_msg "Remove $target/.github/prompts/global (old-style)"
-            else
-                rm "$target/.github/prompts/global"
-            fi
-            success "Removed .github/prompts/global (old-style)"
-            found=true
-        fi
-    fi
-
-    if [[ -L "$target/.github/instructions/global" ]]; then
-        link_target=$(readlink "$target/.github/instructions/global")
-        if [[ "$link_target" == "$SCRIPT_DIR"* ]]; then
-            if $DRY_RUN; then
-                dry_run_msg "Remove $target/.github/instructions/global (old-style)"
-            else
-                rm "$target/.github/instructions/global"
-            fi
-            success "Removed .github/instructions/global (old-style)"
-            found=true
-        fi
-    fi
-
     # Remove git excludes
     remove_git_excludes "$target"
 
@@ -400,7 +375,7 @@ main() {
     parse_args "$@"
 
     echo ""
-    info "Copilot Prompts & Instructions Installer"
+    info "Skills, Instructions & Hooks Installer"
     if $DRY_RUN; then
         warn "DRY RUN MODE - No changes will be made"
     fi
